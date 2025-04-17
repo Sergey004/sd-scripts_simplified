@@ -16,6 +16,16 @@ except ImportError:
 SUPPORTED_IMG_TYPES = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 SUPPORTED_TAG_TYPES = (".txt", ".caption")
 
+def clear_VRAM():
+    """Очистка VRAM GPU."""
+    if torch and torch.cuda.is_available():
+        try:
+            torch.cuda.empty_cache()
+            print("[*] Cleared VRAM cache.")
+        except Exception as e:
+            print(f"[!] Error clearing VRAM: {e}", file=sys.stderr)
+    else:
+        print("[!] No CUDA-enabled GPU found or PyTorch not installed. Skipping VRAM clear.")
 # --- Утилита для запуска команд ---
 def run_cmd(command, check=True, shell=False, capture_output=False, text=False, cwd=None, env=None):
     """Утилита для запуска команд оболочки с улучшенной обработкой ошибок."""

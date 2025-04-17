@@ -266,6 +266,8 @@ def main():
              if not is_critical: print(f"[*] Proceeding after non-critical failure in step: {step_name}")
              else: sys.exit(1)
 
+          
+    common_utils.clear_VRAM()
     print("\n--- Master Script Finished ---")
 
 # --- Точка входа ---
