@@ -2,36 +2,28 @@
 import os
 import argparse
 import sys
-import re # Нужен для split_tags
-from collections import Counter # Для возможного анализа тегов в будущем
-
-# --- Утилиты ---
-def split_tags(tagstr):
-    """Разделяет строку тегов по запятой."""
-    if not isinstance(tagstr, str): return []
-    return [s.strip() for s in tagstr.split(",") if s.strip()]
+# Импорт общих утилит
+try:
+    import common_utils
+except ImportError:
+    print("[X] CRITICAL ERROR: common_utils.py not found.", file=sys.stderr); sys.exit(1)
 
 # --- Функция курирования ---
 def curate_tags(images_folder, activation_tag, remove_tags, search_tags, replace_tags, caption_ext=".txt", sort_alpha=False, remove_duplicates=False):
     """Обрабатывает файлы тегов: добавляет активационный тег, удаляет ненужные, ищет/заменяет."""
     print("\n--- Tag Curation ---")
-    if not os.path.isdir(images_folder):
-        print(f"[!] Image directory not found: {images_folder}. Skipping curation.", file=sys.stderr)
-        return
+    if not os.path.isdir(images_folder): print(f"[!] Image directory not found: {images_folder}. Skipping.", file=sys.stderr); return
 
     try:
         tag_files = [f for f in os.listdir(images_folder) if f.lower().endswith(caption_ext)]
-        if not tag_files:
-            print(f"[*] No tag files ('{caption_ext}') found to curate in {images_folder}.")
-            return
-    except OSError as e:
-        print(f"[!] Error accessing image directory {images_folder}: {e}. Skipping curation.", file=sys.stderr)
-        return
+        if not tag_files: print(f"[*] No tag files ('{caption_ext}') found to curate in {images_folder}."); return
+    except OSError as e: print(f"[!] Error accessing image directory {images_folder}: {e}. Skipping.", file=sys.stderr); return
 
-    activation_tag_list = split_tags(activation_tag)
-    remove_tags_set = set(split_tags(remove_tags))
-    search_tags_set = set(split_tags(search_tags))
-    replace_with_list = split_tags(replace_tags)
+    # Используем split_tags из common_utils
+    activation_tag_list = common_utils.split_tags(activation_tag)
+    remove_tags_set = set(common_utils.split_tags(remove_tags))
+    search_tags_set = set(common_utils.split_tags(search_tags))
+    replace_with_list = common_utils.split_tags(replace_tags)
 
     remove_count = 0; replace_file_count = 0; activation_added_count = 0; processed_files_count = 0
 
@@ -41,7 +33,7 @@ def curate_tags(images_folder, activation_tag, remove_tags, search_tags, replace
         processed = False
         try:
             with open(filepath, 'r', encoding='utf-8') as f: current_tags_str = f.read()
-            tags = split_tags(current_tags_str); original_tags_tuple = tuple(tags)
+            tags = common_utils.split_tags(current_tags_str); original_tags_tuple = tuple(tags)
 
             # 1. Удаление тегов
             if remove_tags_set:
@@ -85,7 +77,7 @@ def curate_tags(images_folder, activation_tag, remove_tags, search_tags, replace
             # Запись изменений
             if processed:
                 final_tags_str = ", ".join(tags)
-                if final_tags_str or original_tags_tuple: # Не пишем пустой файл, если оригинал был пуст
+                if final_tags_str or original_tags_tuple:
                     with open(filepath, 'w', encoding='utf-8') as f: f.write(final_tags_str)
                     processed_files_count += 1
                 else: print(f"  [*] Skipping write for {txt_file} as it became empty.")
@@ -101,16 +93,16 @@ def curate_tags(images_folder, activation_tag, remove_tags, search_tags, replace
 
 # --- Парсер аргументов ---
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Step 4: Curate existing tag files.")
-    parser.add_argument("--project_name", type=str, required=True, help="Name of the project.")
-    parser.add_argument("--base_dir", type=str, default=".", help="Base directory containing project folder.")
-    parser.add_argument("--caption_extension", type=str, default=".txt", help="Extension of tag/caption files.")
-    parser.add_argument("--activation_tag", type=str, default="", help="Activation tag(s) to prepend (comma-separated).")
-    parser.add_argument("--remove_tags", type=str, default="", help="Comma-separated tags to remove.")
-    parser.add_argument("--search_tags", type=str, default="", help="Comma-separated tags to search for (use with --replace_tags).")
-    parser.add_argument("--replace_tags", type=str, default="", help="Comma-separated tags to replace found --search_tags with.")
-    parser.add_argument("--sort_tags_alpha", action='store_true', help="Sort tags alphabetically (after activation tags).")
-    parser.add_argument("--remove_duplicate_tags", action='store_true', help="Remove duplicate tags within each file.")
+    parser = argparse.ArgumentParser(description="Step 4: Curate existing tag files.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--project-name", type=str, required=True, help="Name of the project.")
+    parser.add_argument("--base-dir", type=str, default=".", help="Base directory containing project folder.")
+    parser.add_argument("--caption-extension", type=str, default=".txt", help="Extension of tag/caption files.")
+    parser.add_argument("--activation-tag", type=str, default="", help="Activation tag(s) to prepend (comma-separated).")
+    parser.add_argument("--remove-tags", type=str, default="", help="Comma-separated tags to remove.")
+    parser.add_argument("--search-tags", type=str, default="", help="Comma-separated tags to search for (with --replace-tags).")
+    parser.add_argument("--replace-tags", type=str, default="", help="Comma-separated tags to replace found --search-tags with.")
+    parser.add_argument("--sort-tags-alpha", action='store_true', help="Sort tags alphabetically (after activation tags).")
+    parser.add_argument("--remove-duplicate-tags", action='store_true', help="Remove duplicate tags within each file.")
     return parser.parse_args()
 
 # --- Точка входа ---
