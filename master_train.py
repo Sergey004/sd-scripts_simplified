@@ -4,8 +4,23 @@ import subprocess
 import argparse
 import sys
 import platform
+import time # Добавим для возможной задержки, если нужно
+
 # Импортируем общие утилиты
-import common_utils
+try:
+    # Ищем common_utils.py в той же директории, что и master_train.py
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, script_dir) # Добавляем директорию скрипта в путь поиска
+    import common_utils
+except ImportError:
+    print("[X] CRITICAL ERROR: common_utils.py not found.", file=sys.stderr)
+    print(f"[-] Please ensure common_utils.py is in the same directory as master_train.py ({script_dir}).", file=sys.stderr)
+    sys.exit(1)
+finally:
+    # Убираем добавленный путь, чтобы не мешать другим импортам
+    if script_dir in sys.path:
+        sys.path.remove(script_dir)
+
 
 # --- Функция для запуска дочернего скрипта с паузой ---
 def run_stage_script(script_name, python_executable, args_dict, check=True, wait_for_enter=True):
@@ -19,11 +34,10 @@ def run_stage_script(script_name, python_executable, args_dict, check=True, wait
     # Формируем список аргументов из словаря
     args_list = []
     for key, value in args_dict.items():
-        arg_name = f"--{key.replace('_', '-')}" # Используем дефисы для командной строки
+        arg_name = f"--{key.replace('_', '-')}"
         if isinstance(value, bool):
-            if value: # Добавляем флаг только если True
-                args_list.append(arg_name)
-        elif value is not None: # Добавляем аргумент=значение, если значение не None
+            if value: args_list.append(arg_name)
+        elif value is not None:
             args_list.extend([arg_name, str(value)])
 
     command = [python_executable, script_path] + args_list
@@ -34,17 +48,20 @@ def run_stage_script(script_name, python_executable, args_dict, check=True, wait
 
     if success:
         print(f"--- Stage '{script_name}' Finished Successfully ---")
+        # Пауза только если шаг успешен И паузы включены И это не последний шаг (логика последнего шага в main)
         if wait_for_enter:
              try: input("<?> Press Enter to continue, or Ctrl+C to abort...")
              except KeyboardInterrupt: print("\n[!] Aborted by user."); sys.exit(0)
     else:
         print(f"[!] Stage '{script_name}' failed or finished with errors.", file=sys.stderr)
-        if check: pass # Ошибка уже обработана в run_cmd
-        else:
+        # Если check=False, даем шанс продолжить
+        if not check:
              try: input("<?> Stage failed (non-critical). Press Enter to continue anyway, or Ctrl+C to abort...")
              except KeyboardInterrupt: print("\n[!] Aborted by user after non-critical failure."); sys.exit(0)
+        # Если check=True, run_cmd уже вызвал sys.exit(1)
 
     return success
+
 
 # --- Парсер аргументов для мастер-скрипта ---
 def parse_master_arguments():
@@ -62,21 +79,19 @@ def parse_master_arguments():
     g_steps.add_argument("--run_steps", type=str, default="setup,scrape,dedupe,tag,curate,config,train", help="Comma-separated list of steps to run (e.g., 'tag,curate,config,train'). Steps: setup, scrape, dedupe, tag, curate, config, train.")
     g_steps.add_argument("--skip_steps", type=str, default="", help="Comma-separated list of steps to skip (e.g., 'scrape,dedupe'). Overrides --run_steps.")
     g_steps.add_argument("--no_wait", action='store_true', help="Do not wait for Enter key between steps.")
+    g_steps.add_argument("--skip_initial_pause", action='store_true', help="Skip the initial pause for dataset preparation.") # Новый флаг
 
     # --- Собираем ВСЕ аргументы для ВСЕХ этапов ---
-    # Аргументы setup (передаются в setup_environment.py) - уже есть в Main Settings
-
+    # ... (все аргументы из g_scrape, g_dedupe, g_tag, g_curate, g_config, g_run_train как в предыдущем ответе) ...
     # Аргументы scrape (1_scrape_images.py)
     g_scrape = parser.add_argument_group('Step 1: Scrape Images Args')
     g_scrape.add_argument("--scrape_tags", type=str, default="", help="Tags for Gelbooru scraping.")
     g_scrape.add_argument("--scrape_limit", type=int, default=1000, help="Max images to fetch.")
     g_scrape.add_argument("--scrape_max_res", type=int, default=3072, help="Max image resolution for scraping.")
     g_scrape.add_argument("--scrape_include_parents", action=argparse.BooleanOptionalAction, default=True, help="Include Gelbooru posts with parents.")
-
     # Аргументы dedupe (2_detect_duplicates.py)
     g_dedupe = parser.add_argument_group('Step 2: Detect Duplicates Args')
     g_dedupe.add_argument("--dedup_threshold", type=float, default=0.985, help="Similarity threshold for duplicates.")
-
     # Аргументы tag (3_tag_images.py)
     g_tag = parser.add_argument_group('Step 3: Tag Images Args')
     g_tag.add_argument("--tagging_method", type=str, choices=["wd14", "blip"], default="wd14", help="Tagging method.")
@@ -86,7 +101,6 @@ def parse_master_arguments():
     g_tag.add_argument("--blip_max_length", type=int, default=75, help="Max caption length for BLIP.")
     g_tag.add_argument("--tagger_blacklist", type=str, default="bangs, breasts, multicolored hair, two-tone hair, gradient hair, virtual youtuber", help="Tags to blacklist after WD14 tagging.")
     g_tag.add_argument("--overwrite_tags", action='store_true', help="Overwrite existing tag files during tagging.")
-
     # Аргументы curate (4_curate_tags.py)
     g_curate = parser.add_argument_group('Step 4: Curate Tags Args')
     g_curate.add_argument("--caption_extension", type=str, default=".txt", help="Extension for tag/caption files.")
@@ -96,10 +110,8 @@ def parse_master_arguments():
     g_curate.add_argument("--replace_tags", type=str, default="", help="Tags to replace with.")
     g_curate.add_argument("--sort_tags_alpha", action='store_true', help="Sort tags alphabetically.")
     g_curate.add_argument("--remove_duplicate_tags", action='store_true', help="Remove duplicate tags.")
-
     # Аргументы config & train (5_generate_configs.py, 6_run_training.py)
     g_config = parser.add_argument_group('Step 5 & 6: Training Configuration Args')
-    # ... (все аргументы из g_config парсера предыдущего ответа, включая --base_model required=True) ...
     g_config.add_argument("--base_model", type=str, required=True, help="REQUIRED: URL or local path to the base model.")
     g_config.add_argument("--custom_model", type=str, default=None, help="Override base_model (alternative).")
     g_config.add_argument("--base_vae", type=str, default=None, help="URL or local path for an external VAE (optional).")
@@ -160,17 +172,17 @@ def parse_master_arguments():
 
     return parser.parse_args()
 
-
 # --- Основная Логика ---
 def main():
     master_args = parse_master_arguments()
-    master_args_dict = vars(master_args).copy() # Словарь всех аргументов
+    master_args_dict = vars(master_args).copy()
 
     # Определяем пути
     base_dir = os.path.abspath(master_args.base_dir)
     venv_dir = os.path.join(base_dir, master_args.venv_name)
     kohya_dir = os.path.join(base_dir, master_args.kohya_dir_name)
     project_dir = os.path.join(base_dir, master_args.project_name)
+    paths = { "project": project_dir, "images": os.path.join(project_dir, "dataset"), "output": os.path.join(project_dir, "output"), "logs": os.path.join(project_dir, "logs"), "config": os.path.join(project_dir, "config"), "kohya": kohya_dir, "venv": venv_dir }
 
     # Определяем путь к Python внутри venv
     venv_python = common_utils.get_venv_python(base_dir, master_args.venv_name)
@@ -179,106 +191,80 @@ def main():
     all_steps = ["setup", "scrape", "dedupe", "tag", "curate", "config", "train"]
     steps_to_run = set(s.strip() for s in master_args.run_steps.lower().split(',') if s.strip())
     steps_to_skip = set(s.strip() for s in master_args.skip_steps.lower().split(',') if s.strip())
-
-    # Применяем пропуск
     steps_to_run = steps_to_run - steps_to_skip
 
-    # Обрабатываем --run_prep_only и --run_train_only (если они были)
-    # Эти флаги не используются напрямую, но влияют на run_steps/skip_steps
-    if master_args.run_prep_only:
-        print("[*] --run_prep_only specified: Running setup (if not skipped) and steps 1-5.")
-        steps_to_run = (steps_to_run - {'train'}) # Убираем train
-    elif master_args.run_train_only:
-        print("[*] --run_train_only specified: Running only step 6 (train).")
-        # Оставляем только train, setup пропускается по умолчанию
-        steps_to_run = {'train'}
-
     wait_between_steps = not master_args.no_wait
+    skip_initial_pause = master_args.skip_initial_pause # Используем новый флаг
 
     print("--- Master Script Start ---")
-    print(f"Project: {master_args.project_name}")
-    print(f"Base Dir: {base_dir}")
-    print(f"Wait between steps: {wait_between_steps}")
-    print("-" * 20)
-    print(f"Steps to run: {', '.join(sorted(list(steps_to_run)))}")
-    print("-" * 20)
+    print(f"Project: {master_args.project_name}"); print(f"Base Dir: {base_dir}"); print(f"Wait between steps: {wait_between_steps}"); print(f"Skip initial pause: {skip_initial_pause}"); print("-" * 20)
+    print(f"Steps to run: {', '.join(sorted(list(steps_to_run)))}"); print("-" * 20)
+
+    # --- Создание папок проекта ---
+    print("[*] Ensuring project directories exist...")
+    for key in ["project", "images", "output", "logs", "config"]:
+        try: os.makedirs(paths[key], exist_ok=True)
+        except OSError as e: print(f"[X] CRITICAL ERROR: Could not create directory {paths[key]}: {e}", file=sys.stderr); sys.exit(1)
+
+    # ===> НАЧАЛЬНАЯ ПАУЗА <===
+    if not skip_initial_pause:
+        print("-" * 20)
+        print(f"<?> Please prepare your dataset now.")
+        print(f"    Ensure your images are inside: {paths['images']}")
+        if "tag" not in steps_to_run and "curate" not in steps_to_run:
+             print(f"    Ensure your tag files ({master_args.caption_extension}) are also in that folder and correctly named.")
+        try: input("<?> Press Enter when ready to proceed, or Ctrl+C to abort...")
+        except KeyboardInterrupt: print("\n[!] Aborted by user during initial pause."); sys.exit(0)
+        print("-" * 20)
+    else:
+        print("[*] Skipping initial dataset preparation pause.")
+
+    # Добавим проверку на пустой датасет, если планируются шаги обработки/тренировки
+    steps_requiring_images = {"tag", "curate", "config", "train"}
+    if not steps_to_run.isdisjoint(steps_requiring_images): # Если есть пересечение
+        image_count = common_utils.get_image_count(paths['images'])
+        if image_count == 0:
+            print(f"[X] CRITICAL ERROR: Dataset folder '{paths['images']}' is empty, but subsequent steps require images.", file=sys.stderr)
+            print("[-] Please add images to the dataset folder or adjust the steps to run.")
+            sys.exit(1)
 
     # --- Определяем аргументы для каждого скрипта ---
-    # (Словарь: имя_скрипта -> список_ключей_аргументов)
     script_args_map = {
-        "setup_environment.py": ['base_dir', 'venv_name', 'kohya_dir_name'],
+        "0_setup_environment.py": ['base_dir', 'venv_name', 'kohya_dir_name'],
         "1_scrape_images.py": ['project_name', 'base_dir', 'scrape_tags', 'scrape_limit', 'scrape_max_res', 'scrape_include_parents'],
         "2_detect_duplicates.py": ['project_name', 'base_dir', 'dedup_threshold'],
         "3_tag_images.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'tagging_method', 'tagger_threshold', 'tagger_batch_size', 'blip_min_length', 'blip_max_length', 'caption_extension', 'tagger_blacklist', 'overwrite_tags'],
         "4_curate_tags.py": ['project_name', 'base_dir', 'caption_extension', 'activation_tag', 'remove_tags', 'search_tags', 'replace_tags', 'sort_tags_alpha', 'remove_duplicate_tags'],
-        "5_generate_configs.py": [ # Почти все, кроме управляющих и специфичных для других шагов
-            'project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred',
-            'force_download_model', 'force_download_vae', 'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug',
-            'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs',
-            'caption_dropout', 'tag_dropout', 'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles',
-            'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise',
-            'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora',
-            'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk',
-            'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer', 'use_recommended_optimizer_args',
-            'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso',
-            'max_bucket_reso', 'bucket_no_upscale', 'caption_extension' # caption_extension нужен здесь тоже
-        ],
+        "5_generate_configs.py": ['project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred', 'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug', 'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs', 'caption_dropout', 'tag_dropout', 'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles', 'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise', 'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora', 'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk', 'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer', 'use_recommended_optimizer_args', 'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso', 'max_bucket_reso', 'bucket_no_upscale', 'caption_extension'],
         "6_run_training.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'num_cpu_threads']
     }
 
     # --- Запуск этапов ---
-    current_step = 0
-    for step_name in all_steps:
-        script_file = ""
-        stage_args_dict = {}
-        python_to_use = venv_python # По умолчанию используем python из venv
-        is_critical = True # По умолчанию считаем шаг критичным
+    current_step_num = 0
+    steps_to_run_ordered = [s for s in all_steps if s in steps_to_run] # Сохраняем порядок
 
-        if step_name == "setup":
-            script_file = "0_setup_environment.py"
-            python_to_use = sys.executable # Setup запускаем системным Python
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = True # Setup критичен
-        elif step_name == "scrape":
-            script_file = "1_scrape_images.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = False # Не критично, если не скачалось
-        elif step_name == "dedupe":
-            script_file = "2_detect_duplicates.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = False # Не критично
-        elif step_name == "tag":
-            script_file = "3_tag_images.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = True # Критично для следующих шагов
-        elif step_name == "curate":
-            script_file = "4_curate_tags.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = True # Критично
-        elif step_name == "config":
-            script_file = "5_generate_configs.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = True # Критично для тренировки
-        elif step_name == "train":
-            script_file = "6_run_training.py"
-            stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file]}
-            is_critical = True # Сама тренировка критична
+    for step_name in steps_to_run_ordered:
+        script_file = ""; stage_args_dict = {}; python_to_use = venv_python; is_critical = True; is_last_step = (step_name == steps_to_run_ordered[-1])
 
-        # Запускаем шаг, если он выбран
-        if step_name in steps_to_run:
-            current_step += 1
-            print(f"\n>>> === Starting Pipeline Step {current_step}: {step_name.capitalize()} === <<<")
-            if not run_stage_script(script_file, python_to_use, stage_args_dict, check=is_critical, wait_for_enter=wait_between_steps):
-                 # Если run_stage_script вернул False (из-за check=False и ошибки или Ctrl+C)
-                 if not is_critical:
-                      print(f"[*] Proceeding after non-critical failure in step: {step_name}")
-                 else:
-                      # Этого не должно произойти, т.к. check=True вызовет sys.exit
-                      print(f"[X] Exiting due to failure in critical step: {step_name}")
-                      sys.exit(1)
-        else:
-            print(f"\n[*] Skipping Pipeline Step: {step_name.capitalize()}")
+        if step_name == "setup": script_file = "0_setup_environment.py"; python_to_use = sys.executable; is_critical = True
+        elif step_name == "scrape": script_file = "1_scrape_images.py"; is_critical = False
+        elif step_name == "dedupe": script_file = "2_detect_duplicates.py"; is_critical = False
+        elif step_name == "tag": script_file = "3_tag_images.py"; is_critical = True
+        elif step_name == "curate": script_file = "4_curate_tags.py"; is_critical = True
+        elif step_name == "config": script_file = "5_generate_configs.py"; is_critical = True
+        elif step_name == "train": script_file = "6_run_training.py"; is_critical = True
 
+        current_step_num += 1
+        print(f"\n>>> === Starting Pipeline Step {current_step_num}/{len(steps_to_run_ordered)}: {step_name.capitalize()} === <<<")
+
+        if script_file in script_args_map:
+             stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file] if k in master_args_dict}
+        else: print(f"[!] Warning: No argument map defined for script: {script_file}", file=sys.stderr)
+
+        # Запускаем скрипт, не ждем после последнего шага
+        if not run_stage_script(script_file, python_to_use, stage_args_dict, check=is_critical, wait_for_enter=wait_between_steps and not is_last_step):
+             if not is_critical: print(f"[*] Proceeding after non-critical failure in step: {step_name}")
+             else: sys.exit(1)
 
     print("\n--- Master Script Finished ---")
 
