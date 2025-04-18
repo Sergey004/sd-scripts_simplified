@@ -166,9 +166,4 @@ This project builds upon the work and code from the following authors and projec
 
 *   [Hollowstrawberry](https://github.com/hollowstrawberry/kohya-colab) for the original Colab notebooks and workflow.
 *   [kohya-ss](https://github.com/kohya-ss/sd-scripts) for the core LoRA training toolkit.
-*   The Stable Diffusion community for model and tool development.
-
-## License
-
-(Optional) Specify your license here, e.g.:
-Distributed under the MIT License. See `LICENSE` for more information.
+*   Google Gemini 2.5 Pro for creating this
