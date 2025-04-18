@@ -21,17 +21,17 @@ This set of scripts provides a modular pipeline for training LoRA (Low-Rank Adap
 3.  **CUDA:** Installed NVIDIA drivers and CUDA Toolkit compatible with the PyTorch version specified in `0_setup_environment.py` (default is `cu124` for PyTorch 2.5.1). Check compatibility on the [PyTorch website](https://pytorch.org/).
 4.  **System:** Scripts were primarily tested under Linux/WSL. Running on native Windows or macOS might require additional setup (especially regarding paths and certain dependencies).
 5.  **(Optional but recommended) `aria2c`:** Utility for fast parallel downloads (`sudo apt install aria2` or equivalent). Downloads will be slower without it.
-6.  **(Optional) `FiftyOne`:** Required for the duplicate detection step (`2_detect_duplicates.py`). It's installed by `0_setup_environment.py`, but might require additional database setup on non-Ubuntu systems (see FiftyOne documentation).
+6.  **(Optional) `FiftyOne`:** Required for the duplicate detection step (`2_detect_duplicates.py`). It's installed by `setup_environment.py`, but might require additional database setup on non-Ubuntu systems (see FiftyOne documentation).
 
 ## Installation and Setup
 
-The installation process is performed **once** using the `0_setup_environment.py` script.
+The installation process is performed **once** using the `setup_environment.py` script.
 
 1.  **Download or clone** all the scripts (`0_...py` - `6_...py`, `master_train.py`, `common_utils.py`) into a single folder.
 2.  **Open a terminal** in that folder.
 3.  **Run the setup script:**
     ```bash
-    python 0_setup_environment.py --base_dir "./Loras" --venv_name "lora_env" --kohya_dir_name "kohya_ss"
+    python setup_environment.py --base_dir "./Loras" --venv_name "lora_env" --kohya_dir_name "kohya_ss"
     ```
     *   `--base_dir`: Specify the directory where project folders, the venv, and kohya_ss will be created (default is the current folder `.`). Using `./Loras` is recommended.
     *   `--venv_name`: Name for the virtual environment directory (default `lora_env`).
