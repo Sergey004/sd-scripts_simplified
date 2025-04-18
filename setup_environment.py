@@ -182,15 +182,13 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
              f"torch=={TORCH_VERSION}", f"torchvision=={TORCHVISION_VERSION}", f"xformers=={XFORMERS_VERSION}",
              "--index-url", "https://download.pytorch.org/whl/cu124"], # ЗАМЕНИТЕ cu124 если нужно
              check=True)
-    run_cmd([pip_executable, "install", "onnx", "onnxruntime-gpu==1.20.1", "--extra-index-url", "https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/"], check=True)
+    run_cmd([pip_executable, "install", "onnx", "onnxruntime-gpu", "--extra-index-url", "https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/"], check=True)
     run_cmd([pip_executable, "install",
              f"accelerate=={ACCELERATE_VERSION}", f"transformers=={TRANSFORMERS_VERSION}", f"diffusers[torch]=={DIFFUSERS_VERSION}",
              "bitsandbytes==0.44.0", "safetensors==0.4.4", "prodigyopt==1.0", "lion-pytorch==0.0.6", "schedulefree==1.4",
              "toml==0.10.2", "einops==0.7.0", "ftfy==6.1.1", "opencv-python==4.8.1.78", "pytorch-lightning==1.9.0",
              "wandb", "scipy", "requests", # requests нужен для скачивания в основном скрипте
              "fiftyone", "scikit-learn" # Добавим fiftyone и sklearn для дедупликации
-             # fiftyone-db-ubuntu2204 ставим только если ОС = Ubuntu 22.04? Лучше пусть пользователь сам ставит базу данных.
-             # print("[*] Note: For FiftyOne database on non-Ubuntu, manual setup might be needed.")
             ], check=True)
     print("[+] Core dependencies installed.")
 
