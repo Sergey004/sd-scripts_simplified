@@ -182,6 +182,7 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
              f"torch=={TORCH_VERSION}", f"torchvision=={TORCHVISION_VERSION}", f"xformers=={XFORMERS_VERSION}",
              "--index-url", "https://download.pytorch.org/whl/cu124"], # ЗАМЕНИТЕ cu124 если нужно
              check=True)
+    run_cmd([pip_executable, "install", "onnx", "onnxruntime-gpu==1.20.1", "--extra-index-url", "https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/"], check=True)
     run_cmd([pip_executable, "install",
              f"accelerate=={ACCELERATE_VERSION}", f"transformers=={TRANSFORMERS_VERSION}", f"diffusers[torch]=={DIFFUSERS_VERSION}",
              "bitsandbytes==0.44.0", "safetensors==0.4.4", "prodigyopt==1.0", "lion-pytorch==0.0.6", "schedulefree==1.4",
@@ -245,7 +246,18 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
             # setup_py_path = os.path.join(kohya_dir, 'setup.py')
             # if os.path.exists(setup_py_path):
             #     run_cmd([pip_executable, 'install', '-e', '.'], check=True, cwd=kohya_dir)
-
+            run_cmd([pip_executable, "install" "{kohya_dir}"], check=True) # Установка kohya_ss из локального каталога
+            print("[*] Kohya ss scripts installed.")
+        except FileNotFoundError as e:
+            print(f"[!] Error: {e}. File not found. Please check the path.", file=sys.stderr)
+        except subprocess.CalledProcessError as e:
+            print(f"[!] Error running command: {e}. Command might have failed.", file=sys.stderr)
+        except PermissionError as e:
+            print(f"[!] Permission error: {e}. Please check your permissions.", file=sys.stderr)
+        except OSError as e:
+            print(f"[!] OS error: {e}. Please check your system configuration.", file=sys.stderr)
+        except Exception as e:
+            print(f"[!] An unexpected error occurred: {e}", file=sys.stderr)
             print("[+] Kohya_ss requirements installed.")
         except Exception as e:
             print(f"[!] Error processing or installing kohya requirements: {e}", file=sys.stderr)

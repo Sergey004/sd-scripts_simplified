@@ -40,7 +40,7 @@ def tag_images(images_folder, kohya_dir, venv_dir, method="wd14", batch_size=8, 
         if not os.path.exists(script_path): print(f"[!] WD14 Tagger script not found: {script_path}. Skipping.", file=sys.stderr); return
         print(f"[*] Running WD14 Tagger (model: {model_repo}, threshold: {threshold})...")
         model_cache_dir = os.path.join(kohya_dir, "wd14_models_cache"); os.makedirs(model_cache_dir, exist_ok=True)
-        cmd = [ python_executable, script_path, images_folder, "--repo_id", model_repo, "--model_dir", model_cache_dir, "--thresh", str(threshold), "--batch_size", str(batch_size), "--caption_extension", caption_ext, "--force_download", "--remove_underscore" ]
+        cmd = [ python_executable, script_path, images_folder, "--repo_id", model_repo, "--model_dir", model_cache_dir, "--thresh", str(threshold), "--batch_size", str(batch_size), "--caption_extension", caption_ext, "--force_download", "--remove_underscore", "--onnx", "--recursive" ]
         common_utils.run_cmd(cmd, check=True) # Используем общую утилиту
         # Пост-обработка: блеклист
         print("[*] Post-processing WD14 tags (applying blacklist)...")
