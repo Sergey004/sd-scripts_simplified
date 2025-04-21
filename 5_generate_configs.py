@@ -1,3 +1,4 @@
+# Файл: 5_generate_configs.py
 # -*- coding: utf-8 -*-
 import os
 import argparse
@@ -7,30 +8,31 @@ import sys
 import re
 # Импорт общих утилит
 try:
+    # Ищем common_utils.py в той же директории
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, script_dir)
     import common_utils
 except ImportError:
     print("[X] CRITICAL ERROR: common_utils.py not found.", file=sys.stderr); sys.exit(1)
+finally:
+    if script_dir in sys.path: sys.path.remove(script_dir)
+
 
 # --- Функция генерации конфигов ---
 def generate_configuration_files(paths, args, final_params):
     """Генерирует training_*.toml и dataset_*.toml."""
     print("\n--- Generating Configuration Files ---")
 
-    # Получаем финальные значения
-    current_num_repeats = final_params['num_repeats']
-    current_batch_size = final_params['train_batch_size']
-    current_optimizer = final_params['optimizer']
-    current_precision = final_params['precision']
+    current_num_repeats = final_params['num_repeats']; current_batch_size = final_params['train_batch_size']
+    current_optimizer = final_params['optimizer']; current_precision = final_params['precision']
     current_optimizer_args = final_params['optimizer_args']
 
-    images_folder = paths["images"]
-    config_folder = paths["config"]
-    output_folder = paths["output"]
-    log_folder = paths["logs"]
+    images_folder = paths["images"]; config_folder = paths["config"]
+    output_folder = paths["output"]; log_folder = paths["logs"]
 
     # Пересчитываем шаги/эпохи
     total_images = common_utils.get_image_count(images_folder)
-    if total_images == 0: print(f"[!] Error: No images found in {images_folder}. Cannot generate configs.", file=sys.stderr); return None
+    if total_images == 0: print(f"[!] Error: No images found in {images_folder}.", file=sys.stderr); return None
     if current_batch_size <= 0: print("[!] Error: Batch size must be positive.", file=sys.stderr); return None
     if current_num_repeats <= 0: print("[!] Error: Repeats must be positive.", file=sys.stderr); return None
 
@@ -38,22 +40,17 @@ def generate_configuration_files(paths, args, final_params):
     steps_per_epoch = math.ceil(pre_steps_per_epoch / current_batch_size)
 
     max_train_epochs = None; max_train_steps = None
-    if args.preferred_unit == "Epochs":
-        max_train_epochs = args.how_many
-        max_train_steps = max_train_epochs * steps_per_epoch
-    else:
-        max_train_steps = args.how_many
-        max_train_epochs = math.ceil(max_train_steps / steps_per_epoch) if steps_per_epoch > 0 else 0
+    if args.preferred_unit == "Epochs": max_train_epochs = args.how_many; max_train_steps = max_train_epochs * steps_per_epoch
+    else: max_train_steps = args.how_many; max_train_epochs = math.ceil(max_train_steps / steps_per_epoch) if steps_per_epoch > 0 else 0
 
     if max_train_steps <= 0: print(f"[!] Error: Calculated total steps ({max_train_steps}) <= 0.", file=sys.stderr); return None
     lr_warmup_steps = int(max_train_steps * args.lr_warmup_ratio) if args.lr_scheduler not in ('constant', 'cosine') else 0
 
-    # Определение путей модели/VAE (без скачивания)
+    # Определение путей модели/VAE
     model_url = args.custom_model if args.custom_model else args.base_model
     vae_url = args.custom_vae if args.custom_vae else args.base_vae
     model_file_path = os.path.abspath(model_url) if os.path.exists(model_url) else model_url
     vae_file_path = os.path.abspath(vae_url) if vae_url and os.path.exists(vae_url) else vae_url
-
     is_diffusers_model = os.path.isdir(model_file_path) if os.path.exists(model_file_path) else ('huggingface.co/' in model_file_path and not model_file_path.endswith(('.safetensors', '.ckpt')))
 
     print(f"[*] Using Model Path/ID: {model_file_path}" + (" (Diffusers)" if is_diffusers_model else ""))
@@ -66,8 +63,7 @@ def generate_configuration_files(paths, args, final_params):
     dataset_config_file = os.path.join(config_folder, f"dataset_{args.project_name}.toml")
 
     network_args_list = []
-    if args.lora_type.lower() == "locon":
-        network_args_list = [f"conv_dim={args.conv_dim}", f"conv_alpha={args.conv_alpha}"]
+    if args.lora_type.lower() == "locon": network_args_list = [f"conv_dim={args.conv_dim}", f"conv_alpha={args.conv_alpha}"]
 
     mixed_precision_val = "no"; full_precision_val = False
     if "fp16" in current_precision: mixed_precision_val = "fp16"
@@ -79,13 +75,25 @@ def generate_configuration_files(paths, args, final_params):
         "model_arguments": {"pretrained_model_name_or_path": model_file_path, "vae": vae_file_path if vae_file_path and not is_diffusers_model else None, "v_parameterization": args.v_pred},
         "network_arguments": {"unet_lr": args.unet_lr, "text_encoder_lr": args.text_encoder_lr if not args.cache_text_encoder_outputs else 0, "network_dim": args.network_dim, "network_alpha": args.network_alpha, "network_module": "networks.lora", "network_args": network_args_list or None, "network_train_unet_only": args.text_encoder_lr == 0 or args.cache_text_encoder_outputs, "network_weights": args.continue_from_lora},
         "optimizer_arguments": {"optimizer_type": current_optimizer, "learning_rate": args.unet_lr, "optimizer_args": current_optimizer_args or None, "lr_scheduler": args.lr_scheduler, "lr_warmup_steps": lr_warmup_steps, "lr_scheduler_num_cycles": args.lr_scheduler_num_cycles if args.lr_scheduler == "cosine_with_restarts" else None, "lr_scheduler_power": args.lr_scheduler_power if args.lr_scheduler == "polynomial" else None, "max_grad_norm": 1.0, "loss_type": "l2"},
-        "dataset_arguments": {"cache_latents": args.cache_latents, "cache_latents_to_disk": args.cache_latents_to_disk, "cache_text_encoder_outputs": args.cache_text_encoder_outputs, "keep_tokens": args.keep_tokens, "shuffle_caption": args.shuffle_tags and not args.cache_text_encoder_outputs, "caption_dropout_rate": args.caption_dropout or None, "caption_tag_dropout_rate": args.tag_dropout or None, "caption_extension": args.caption_extension},
+        "dataset_arguments": {
+            "cache_latents": args.cache_latents,
+            "cache_latents_to_disk": args.cache_latents_to_disk,
+            "cache_text_encoder_outputs": args.cache_text_encoder_outputs,
+            "keep_tokens": args.keep_tokens,
+            "shuffle_caption": args.shuffle_tags and not args.cache_text_encoder_outputs,
+            # ===> ИСПОЛЬЗУЕМ НОВЫЕ АРГУМЕНТЫ <===
+            "caption_dropout_rate": args.caption_dropout or None,
+            "caption_dropout_every_n_epochs": args.caption_dropout_every_n_epochs or None,
+            # ===> КОНЕЦ ИЗМЕНЕНИЙ <===
+            "caption_tag_dropout_rate": args.tag_dropout or None,
+            "caption_extension": args.caption_extension
+        },
         "training_arguments": {"output_dir": output_folder, "output_name": args.project_name, "save_precision": "fp16", "save_every_n_epochs": args.save_every_n_epochs or None, "save_last_n_epochs": args.keep_only_last_n_epochs or None, "save_model_as": "safetensors", "max_train_epochs": max_train_epochs if args.preferred_unit == "Epochs" else None, "max_train_steps": max_train_steps if args.preferred_unit == "Steps" else None, "max_data_loader_n_workers": args.max_data_loader_n_workers, "persistent_data_loader_workers": True, "seed": args.seed, "gradient_checkpointing": args.gradient_checkpointing, "gradient_accumulation_steps": 1, "mixed_precision": mixed_precision_val, "full_fp16": full_precision_val if mixed_precision_val == "fp16" else None, "full_bf16": full_precision_val if mixed_precision_val == "bf16" else None, "logging_dir": log_folder, "log_prefix": args.project_name, "log_with": "tensorboard", "lowram": args.lowram, "train_batch_size": current_batch_size, "xformers": args.cross_attention == "xformers", "sdpa": args.cross_attention == "sdpa", "noise_offset": args.noise_offset or None, "min_snr_gamma": args.min_snr_gamma if args.min_snr_gamma > 0 else None, "ip_noise_gamma": args.ip_noise_gamma if args.ip_noise_gamma > 0 else None, "multires_noise_iterations": 6 if args.multinoise else None, "multires_noise_discount": 0.3 if args.multinoise else None, "max_token_length": 225, "bucket_reso_steps": args.bucket_reso_steps, "min_bucket_reso": args.min_bucket_reso, "max_bucket_reso": args.max_bucket_reso, "bucket_no_upscale": args.bucket_no_upscale, "enable_bucket": True, "zero_terminal_snr": args.zero_terminal_snr}
     }
 
     def remove_none_recursive(d):
         if isinstance(d, dict): return {k: remove_none_recursive(v) for k, v in d.items() if v is not None}
-        elif isinstance(d, list): return [remove_none_recursive(i) for i in d]
+        elif isinstance(d, list): return [remove_none_recursive(i) for i in d] # Не удаляем None из списков аргументов
         else: return d
 
     clean_training_dict = remove_none_recursive(training_dict)
@@ -96,7 +104,7 @@ def generate_configuration_files(paths, args, final_params):
 
     dataset_dict = {
       "general": {"resolution": args.resolution, "keep_tokens": args.keep_tokens, "flip_aug": args.flip_aug, "enable_bucket": True, "bucket_reso_steps": args.bucket_reso_steps, "min_bucket_reso": args.min_bucket_reso, "max_bucket_reso": args.max_bucket_reso, "bucket_no_upscale": args.bucket_no_upscale},
-      "datasets": [{"subsets": [{"image_dir": images_folder, "num_repeats": current_num_repeats, "caption_extension": args.caption_extension, "shuffle_caption": args.shuffle_tags and not args.cache_text_encoder_outputs, "caption_dropout_rate": args.caption_dropout or None, "caption_tag_dropout_rate": args.tag_dropout or None}]}]
+      "datasets": [{"subsets": [{"image_dir": images_folder, "num_repeats": current_num_repeats, "caption_extension": args.caption_extension}]}] # Dropout не здесь
     }
     clean_dataset_dict = remove_none_recursive(dataset_dict)
     try:
@@ -106,24 +114,21 @@ def generate_configuration_files(paths, args, final_params):
 
     return config_file, dataset_config_file
 
+
 # --- Парсер аргументов ---
 def parse_arguments():
-    # Используем дефисы для имен аргументов в парсере
     parser = argparse.ArgumentParser(description="Step 5: Generate training config files.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # Копируем ВСЕ аргументы из g_config парсера master_train.py
     # --- Основные Настройки ---
     g_main = parser.add_argument_group('Main Settings')
     g_main.add_argument("--project-name", type=str, required=True, help="Name of the project.")
-    g_main.add_argument("--base-dir", type=str, default=".", help="Base directory containing project folder.")
+    g_main.add_argument("--base-dir", type=str, default=".", help="Base directory.")
     # --- Источник Модели ---
     g_model = parser.add_argument_group('Model Source')
-    g_model.add_argument("--base-model", type=str, required=True, help="REQUIRED: URL or local path to the base model.")
-    g_model.add_argument("--custom-model", type=str, default=None, help="Override base_model (alternative).")
-    g_model.add_argument("--base-vae", type=str, default=None, help="URL or local path for an external VAE (optional).")
-    g_model.add_argument("--custom-vae", type=str, default=None, help="Override base_vae (alternative).")
-    g_model.add_argument("--v-pred", action='store_true', help="Set if the base model uses v-prediction.")
-    # g_model.add_argument("--force-download-model", action='store_true', help="Force download model (handled here).") # Этот скрипт не качает
-    # g_model.add_argument("--force-download-vae", action='store_true', help="Force download VAE (handled here).") # Этот скрипт не качает
+    g_model.add_argument("--base-model", type=str, required=True, help="REQUIRED: Base model path/URL.")
+    g_model.add_argument("--custom-model", type=str, default=None, help="Override base_model.")
+    g_model.add_argument("--base-vae", type=str, default=None, help="External VAE path/URL (optional).")
+    g_model.add_argument("--custom-vae", type=str, default=None, help="Override base_vae.")
+    g_model.add_argument("--v-pred", action='store_true', help="Use v-prediction model.")
     # --- Настройки Тренировки ---
     g_train = parser.add_argument_group('Training Settings')
     g_train.add_argument("--resolution", type=int, default=1024, help="Training resolution.")
@@ -135,15 +140,18 @@ def parse_arguments():
     g_train.add_argument("--auto-repeats", action='store_true', help="Auto-determine repeats based on image count.")
     g_train.add_argument("--preferred-unit", type=str, choices=["Epochs", "Steps"], default="Epochs", help="Unit for training duration.")
     g_train.add_argument("--how-many", type=int, default=10, help="Number of epochs or steps.")
-    g_train.add_argument("--save-every-n-epochs", type=int, default=1, metavar='N', help="Save checkpoint every N epochs (0=only last).")
-    g_train.add_argument("--keep-only-last-n-epochs", type=int, default=10, metavar='N', help="Keep only the last N saved epochs (0=keep all).")
+    g_train.add_argument("--save-every-n-epochs", type=int, default=1, metavar='N', help="Save checkpoint every N epochs.")
+    g_train.add_argument("--keep-only-last-n-epochs", type=int, default=10, metavar='N', help="Keep only the last N saved epochs.")
+    # ===> ДОБАВЛЕННЫЕ АРГУМЕНТЫ <===
     g_train.add_argument("--caption-dropout", type=float, default=0.0, metavar='RATE', help="Caption dropout rate (0-1).")
+    g_train.add_argument("--caption-dropout-every-n-epochs", type=int, default=0, metavar='N', help="Apply caption dropout every N epochs (0=never).")
+    # ===> КОНЕЦ ДОБАВЛЕННЫХ АРГУМЕНТОВ <===
     g_train.add_argument("--tag-dropout", type=float, default=0.0, metavar='RATE', help="Tag dropout rate (0-1).")
     # --- Параметры Обучения ---
     g_learn = parser.add_argument_group('Learning Parameters')
     g_learn.add_argument("--unet-lr", type=float, default=3e-4, help="U-Net learning rate.")
     g_learn.add_argument("--text-encoder-lr", type=float, default=6e-5, help="Text Encoder learning rate (0 to disable).")
-    g_learn.add_argument("--lr-scheduler", type=str, default="cosine_with_restarts", choices=["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"], help="Learning rate scheduler.")
+    g_learn.add_argument("--lr-scheduler", type=str, default="cosine_with_restarts", choices=["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"], help="LR scheduler.")
     g_learn.add_argument("--lr-scheduler-num-cycles", type=int, default=3, help="Cycles for cosine_with_restarts.")
     g_learn.add_argument("--lr-scheduler-power", type=float, default=1.0, help="Power for polynomial scheduler.")
     g_learn.add_argument("--lr-warmup-ratio", type=float, default=0.05, help="LR warmup ratio (0.0-0.2).")
@@ -154,12 +162,12 @@ def parse_arguments():
     g_learn.add_argument("--zero-terminal-snr", action='store_true', help="Enable zero terminal SNR.")
     # --- Структура LoRA ---
     g_lora = parser.add_argument_group('LoRA Structure')
-    g_lora.add_argument("--lora-type", type=str, choices=["LoRA", "LoCon"], default="LoRA", help="Type of LoRA network.")
+    g_lora.add_argument("--lora-type", type=str, choices=["LoRA", "LoCon"], default="LoRA", help="LoRA network type.")
     g_lora.add_argument("--network-dim", type=int, default=32, help="Network dimension (rank).")
     g_lora.add_argument("--network-alpha", type=int, default=16, help="Network alpha.")
     g_lora.add_argument("--conv-dim", type=int, default=16, help="Conv dimension for LoCon.")
     g_lora.add_argument("--conv-alpha", type=int, default=8, help="Conv alpha for LoCon.")
-    g_lora.add_argument("--continue-from-lora", type=str, default=None, metavar='PATH', help="Path to existing LoRA file to continue.")
+    g_lora.add_argument("--continue-from-lora", type=str, default=None, metavar='PATH', help="Path to existing LoRA to continue.")
     # --- Параметры Тренировки (Технические) ---
     g_tech = parser.add_argument_group('Technical Training Parameters')
     g_tech.add_argument("--auto-vram-params", action='store_true', help="Auto-set batch_size, optimizer, precision.")
@@ -170,12 +178,11 @@ def parse_arguments():
     g_tech.add_argument("--cache-latents-to-disk", action=argparse.BooleanOptionalAction, default=True, help="Cache latents to disk.")
     g_tech.add_argument("--cache-text-encoder-outputs", action='store_true', help="Cache text encoder outputs.")
     g_tech.add_argument("--gradient-checkpointing", action=argparse.BooleanOptionalAction, default=True, help="Enable gradient checkpointing.")
-    g_tech.add_argument("--optimizer", type=str, default=None, choices=["AdamW8bit", "Prodigy", "DAdaptation", "DadaptAdam", "DadaptLion", "AdamW", "Lion", "SGDNesterov", "SGDNesterov8bit", "AdaFactor"], metavar='OPT', help="Optimizer algorithm (overrides auto).")
+    g_tech.add_argument("--optimizer", type=str, default=None, choices=["AdamW8bit", "Prodigy", "DAdaptation", "DadaptAdam", "DadaptLion", "AdamW", "Lion", "SGDNesterov", "SGDNesterov8bit", "AdaFactor"], metavar='OPT', help="Optimizer (overrides auto).")
     g_tech.add_argument("--use-recommended-optimizer-args", action='store_true', help="Use recommended args for optimizer.")
     g_tech.add_argument("--optimizer-args", type=str, default="", help="Additional optimizer arguments.")
     g_tech.add_argument("--max-data-loader-n-workers", type=int, default=2, help="Workers for data loading.")
     g_tech.add_argument("--seed", type=int, default=42, help="Random seed.")
-    # g_tech.add_argument("--num-cpu-threads", type=int, default=2, help="CPU threads per process for Accelerate.") # Этот параметр нужен только для accelerate launch
     g_tech.add_argument("--lowram", action='store_true', help="Enable Kohya low RAM optimizations.")
     # --- Настройки Бакетов ---
     g_bucket = parser.add_argument_group('Bucket Settings')
@@ -186,12 +193,10 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
 # --- Точка входа ---
 if __name__ == "__main__":
-    # Используем дефисы в именах аргументов командной строки, но argparse преобразует их в подчеркивания для доступа
     args = parse_arguments()
-
-    # Доступ к аргументам через подчеркивания
     base_dir = os.path.abspath(args.base_dir)
     project_dir = os.path.join(base_dir, args.project_name)
     paths = { "project": project_dir, "images": os.path.join(project_dir, "dataset"), "output": os.path.join(project_dir, "output"), "logs": os.path.join(project_dir, "logs"), "config": os.path.join(project_dir, "config") }
@@ -224,7 +229,6 @@ if __name__ == "__main__":
     print("--- Final Effective Parameters for Config ---")
     print(f"  Batch Size: {final_params['train_batch_size']}"); print(f"  Optimizer: {final_params['optimizer']}"); print(f"  Optimizer Args: {' '.join(final_params['optimizer_args']) if final_params['optimizer_args'] else 'None'}"); print(f"  Precision: {final_params['precision']}"); print(f"  Num Repeats: {final_params['num_repeats']}"); print("-------------------------------------------")
 
-    # Генерация конфигов
     result = generate_configuration_files(paths, args, final_params)
 
     if result: print("\n--- Step 5 Finished Successfully ---")

@@ -1,23 +1,22 @@
+# Файл: master_train.py
 # -*- coding: utf-8 -*-
 import os
 import subprocess
 import argparse
 import sys
 import platform
-import time # Добавим для возможной задержки, если нужно
+import time
 
 # Импортируем общие утилиты
 try:
-    # Ищем common_utils.py в той же директории, что и master_train.py
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, script_dir) # Добавляем директорию скрипта в путь поиска
+    sys.path.insert(0, script_dir)
     import common_utils
 except ImportError:
     print("[X] CRITICAL ERROR: common_utils.py not found.", file=sys.stderr)
     print(f"[-] Please ensure common_utils.py is in the same directory as master_train.py ({script_dir}).", file=sys.stderr)
     sys.exit(1)
 finally:
-    # Убираем добавленный путь, чтобы не мешать другим импортам
     if script_dir in sys.path:
         sys.path.remove(script_dir)
 
@@ -31,7 +30,6 @@ def run_stage_script(script_name, python_executable, args_dict, check=True, wait
         if check: sys.exit(1)
         return False
 
-    # Формируем список аргументов из словаря
     args_list = []
     for key, value in args_dict.items():
         arg_name = f"--{key.replace('_', '-')}"
@@ -42,23 +40,20 @@ def run_stage_script(script_name, python_executable, args_dict, check=True, wait
 
     command = [python_executable, script_path] + args_list
     print(f"\n--- Running Stage: {script_name} ---")
-    result = common_utils.run_cmd(command, check=check) # Используем run_cmd из утилит
+    result = common_utils.run_cmd(command, check=check)
 
     success = result is not None and result.returncode == 0
 
     if success:
         print(f"--- Stage '{script_name}' Finished Successfully ---")
-        # Пауза только если шаг успешен И паузы включены И это не последний шаг (логика последнего шага в main)
         if wait_for_enter:
              try: input("<?> Press Enter to continue, or Ctrl+C to abort...")
              except KeyboardInterrupt: print("\n[!] Aborted by user."); sys.exit(0)
     else:
         print(f"[!] Stage '{script_name}' failed or finished with errors.", file=sys.stderr)
-        # Если check=False, даем шанс продолжить
         if not check:
              try: input("<?> Stage failed (non-critical). Press Enter to continue anyway, or Ctrl+C to abort...")
              except KeyboardInterrupt: print("\n[!] Aborted by user after non-critical failure."); sys.exit(0)
-        # Если check=True, run_cmd уже вызвал sys.exit(1)
 
     return success
 
@@ -79,10 +74,9 @@ def parse_master_arguments():
     g_steps.add_argument("--run_steps", type=str, default="setup,scrape,dedupe,tag,curate,config,train", help="Comma-separated list of steps to run (e.g., 'tag,curate,config,train'). Steps: setup, scrape, dedupe, tag, curate, config, train.")
     g_steps.add_argument("--skip_steps", type=str, default="", help="Comma-separated list of steps to skip (e.g., 'scrape,dedupe'). Overrides --run_steps.")
     g_steps.add_argument("--no_wait", action='store_true', help="Do not wait for Enter key between steps.")
-    g_steps.add_argument("--skip_initial_pause", action='store_true', help="Skip the initial pause for dataset preparation.") # Новый флаг
+    g_steps.add_argument("--skip_initial_pause", action='store_true', help="Skip the initial pause for dataset preparation.")
 
     # --- Собираем ВСЕ аргументы для ВСЕХ этапов ---
-    # ... (все аргументы из g_scrape, g_dedupe, g_tag, g_curate, g_config, g_run_train как в предыдущем ответе) ...
     # Аргументы scrape (1_scrape_images.py)
     g_scrape = parser.add_argument_group('Step 1: Scrape Images Args')
     g_scrape.add_argument("--scrape_tags", type=str, default="", help="Tags for Gelbooru scraping.")
@@ -129,8 +123,11 @@ def parse_master_arguments():
     g_config.add_argument("--how_many", type=int, default=10, help="Number of epochs or steps.")
     g_config.add_argument("--save_every_n_epochs", type=int, default=1, metavar='N', help="Save checkpoint every N epochs.")
     g_config.add_argument("--keep_only_last_n_epochs", type=int, default=10, metavar='N', help="Keep only the last N saved epochs.")
-    g_config.add_argument("--caption_dropout", type=float, default=0.0, metavar='RATE', help="Caption dropout rate.")
-    g_config.add_argument("--tag_dropout", type=float, default=0.0, metavar='RATE', help="Tag dropout rate.")
+    # ===> ДОБАВЛЕННЫЕ АРГУМЕНТЫ <===
+    g_config.add_argument("--caption_dropout", type=float, default=0.0, metavar='RATE', help="Caption dropout rate (0-1).")
+    g_config.add_argument("--caption_dropout_every_n_epochs", type=int, default=0, metavar='N', help="Apply caption dropout every N epochs (0=never).")
+    # ===> КОНЕЦ ДОБАВЛЕННЫХ АРГУМЕНТОВ <===
+    g_config.add_argument("--tag_dropout", type=float, default=0.0, metavar='RATE', help="Tag dropout rate (0-1).")
     g_config.add_argument("--unet_lr", type=float, default=3e-4, help="U-Net learning rate.")
     g_config.add_argument("--text_encoder_lr", type=float, default=6e-5, help="Text Encoder learning rate.")
     g_config.add_argument("--lr_scheduler", type=str, default="cosine_with_restarts", choices=["constant", "cosine", "cosine_with_restarts", "constant_with_warmup", "linear", "polynomial"], help="Learning rate scheduler.")
@@ -172,6 +169,7 @@ def parse_master_arguments():
 
     return parser.parse_args()
 
+
 # --- Основная Логика ---
 def main():
     master_args = parse_master_arguments()
@@ -194,11 +192,13 @@ def main():
     steps_to_run = steps_to_run - steps_to_skip
 
     wait_between_steps = not master_args.no_wait
-    skip_initial_pause = master_args.skip_initial_pause # Используем новый флаг
+    skip_initial_pause = master_args.skip_initial_pause
 
     print("--- Master Script Start ---")
+    # ... (печать информации) ...
     print(f"Project: {master_args.project_name}"); print(f"Base Dir: {base_dir}"); print(f"Wait between steps: {wait_between_steps}"); print(f"Skip initial pause: {skip_initial_pause}"); print("-" * 20)
     print(f"Steps to run: {', '.join(sorted(list(steps_to_run)))}"); print("-" * 20)
+
 
     # --- Создание папок проекта ---
     print("[*] Ensuring project directories exist...")
@@ -212,21 +212,19 @@ def main():
         print(f"<?> Please prepare your dataset now.")
         print(f"    Ensure your images are inside: {paths['images']}")
         if "tag" not in steps_to_run and "curate" not in steps_to_run:
-             print(f"    Ensure your tag files ({master_args.caption_extension}) are also in that folder and correctly named.")
-        try: input("<?> Press Enter when ready to proceed, or Ctrl+C to abort...")
-        except KeyboardInterrupt: print("\n[!] Aborted by user during initial pause."); sys.exit(0)
+             print(f"    Ensure your tag files ({master_args.caption_extension}) are also in that folder.")
+        try: input("<?> Press Enter when ready, or Ctrl+C to abort...")
+        except KeyboardInterrupt: print("\n[!] Aborted by user."); sys.exit(0)
         print("-" * 20)
     else:
         print("[*] Skipping initial dataset preparation pause.")
 
-    # Добавим проверку на пустой датасет, если планируются шаги обработки/тренировки
+    # Проверка на пустой датасет
     steps_requiring_images = {"tag", "curate", "config", "train"}
-    if not steps_to_run.isdisjoint(steps_requiring_images): # Если есть пересечение
+    if not steps_to_run.isdisjoint(steps_requiring_images):
         image_count = common_utils.get_image_count(paths['images'])
         if image_count == 0:
-            print(f"[X] CRITICAL ERROR: Dataset folder '{paths['images']}' is empty, but subsequent steps require images.", file=sys.stderr)
-            print("[-] Please add images to the dataset folder or adjust the steps to run.")
-            sys.exit(1)
+            print(f"[X] CRITICAL ERROR: Dataset folder '{paths['images']}' is empty.", file=sys.stderr); sys.exit(1)
 
     # --- Определяем аргументы для каждого скрипта ---
     script_args_map = {
@@ -235,13 +233,27 @@ def main():
         "2_detect_duplicates.py": ['project_name', 'base_dir', 'dedup_threshold'],
         "3_tag_images.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'tagging_method', 'tagger_threshold', 'tagger_batch_size', 'blip_min_length', 'blip_max_length', 'caption_extension', 'tagger_blacklist', 'overwrite_tags'],
         "4_curate_tags.py": ['project_name', 'base_dir', 'caption_extension', 'activation_tag', 'remove_tags', 'search_tags', 'replace_tags', 'sort_tags_alpha', 'remove_duplicate_tags'],
-        "5_generate_configs.py": ['project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred', 'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug', 'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs', 'caption_dropout', 'tag_dropout', 'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles', 'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise', 'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora', 'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk', 'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer', 'use_recommended_optimizer_args', 'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso', 'max_bucket_reso', 'bucket_no_upscale', 'caption_extension'],
+        "5_generate_configs.py": [
+            'project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred',
+            'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug',
+            'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs',
+            # ===> ДОБАВЛЕННЫЕ КЛЮЧИ <===
+            'caption_dropout', 'caption_dropout_every_n_epochs',
+            # ===> КОНЕЦ ДОБАВЛЕННЫХ КЛЮЧЕЙ <===
+            'tag_dropout', 'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles',
+            'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise',
+            'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora',
+            'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk',
+            'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer', 'use_recommended_optimizer_args',
+            'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso',
+            'max_bucket_reso', 'bucket_no_upscale', 'caption_extension'
+        ],
         "6_run_training.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'num_cpu_threads']
     }
 
     # --- Запуск этапов ---
     current_step_num = 0
-    steps_to_run_ordered = [s for s in all_steps if s in steps_to_run] # Сохраняем порядок
+    steps_to_run_ordered = [s for s in all_steps if s in steps_to_run]
 
     for step_name in steps_to_run_ordered:
         script_file = ""; stage_args_dict = {}; python_to_use = venv_python; is_critical = True; is_last_step = (step_name == steps_to_run_ordered[-1])
@@ -261,12 +273,11 @@ def main():
              stage_args_dict = {k: master_args_dict[k] for k in script_args_map[script_file] if k in master_args_dict}
         else: print(f"[!] Warning: No argument map defined for script: {script_file}", file=sys.stderr)
 
-        # Запускаем скрипт, не ждем после последнего шага
         if not run_stage_script(script_file, python_to_use, stage_args_dict, check=is_critical, wait_for_enter=wait_between_steps and not is_last_step):
              if not is_critical: print(f"[*] Proceeding after non-critical failure in step: {step_name}")
              else: sys.exit(1)
 
-          
+    # Очистка VRAM после завершения всех шагов
     common_utils.clear_VRAM()
     print("\n--- Master Script Finished ---")
 
