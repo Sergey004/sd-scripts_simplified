@@ -246,7 +246,22 @@ def main():
         "2_detect_duplicates.py": ['project_name', 'base_dir', 'dedup_threshold'],
         "3_tag_images.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'tagging_method', 'tagger_threshold', 'tagger_batch_size', 'blip_min_length', 'blip_max_length', 'caption_extension', 'tagger_blacklist', 'overwrite_tags'],
         "4_curate_tags.py": ['project_name', 'base_dir', 'caption_extension', 'activation_tag', 'remove_tags', 'search_tags', 'replace_tags', 'sort_tags_alpha', 'remove_duplicate_tags'],
-        "5_generate_configs.py": ['project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred', 'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug', 'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs', 'caption_dropout', 'caption_dropout_every_n_epochs', 'tag_dropout', 'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles', 'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise', 'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora', 'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk', 'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer', 'use_recommended_optimizer_args', 'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso', 'max_bucket_reso', 'bucket_no_upscale', 'caption_extension'],
+        "5_generate_configs.py": [
+            'project_name', 'base_dir', 'base_model', 'custom_model', 'base_vae', 'custom_vae', 'v_pred',
+            'resolution', 'shuffle_tags', 'keep_tokens', 'flip_aug',
+            'num_repeats', 'auto_repeats', 'preferred_unit', 'how_many', 'save_every_n_epochs', 'keep_only_last_n_epochs',
+            'caption_dropout', 'caption_dropout_every_n_epochs', 'tag_dropout',
+            'unet_lr', 'text_encoder_lr', 'lr_scheduler', 'lr_scheduler_num_cycles',
+            'lr_scheduler_power', 'lr_warmup_ratio', 'min_snr_gamma', 'noise_offset', 'ip_noise_gamma', 'multinoise',
+            'zero_terminal_snr', 'lora_type', 'network_dim', 'network_alpha', 'conv_dim', 'conv_alpha', 'continue_from_lora',
+            'auto_vram_params', 'train_batch_size', 'cross_attention', 'precision', 'cache_latents', 'cache_latents_to_disk',
+            'cache_text_encoder_outputs', 'gradient_checkpointing', 'optimizer',
+            # ===> ДОБАВЛЕН КЛЮЧ <===
+            'use_recommended_optimizer_args',
+            # ===> КОНЕЦ ДОБАВЛЕНИЯ <===
+            'optimizer_args', 'max_data_loader_n_workers', 'seed', 'lowram', 'bucket_reso_steps', 'min_bucket_reso',
+            'max_bucket_reso', 'bucket_no_upscale', 'caption_extension'
+        ],
         "6_run_training.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'num_cpu_threads']
     }
 
