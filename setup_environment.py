@@ -177,17 +177,18 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
 
     # 3. Установка основных зависимостей (Torch, xFormers, etc.)
     print("\n[*] Installing core dependencies into venv...")
-    run_cmd([pip_executable, "install", "-U", "pip", "setuptools", "wheel"], check=True)
+    run_cmd([pip_executable, "install", "-U", "pip", "setuptools", "wheel"], check=True) # Обновляем pip/setuptools
     run_cmd([pip_executable, "install",
              f"torch=={TORCH_VERSION}", f"torchvision=={TORCHVISION_VERSION}", f"xformers=={XFORMERS_VERSION}",
-             "--index-url", "https://download.pytorch.org/whl/cu124"], check=True)
+             "--index-url", "https://download.pytorch.org/whl/cu124"], # ЗАМЕНИТЕ cu124 если нужно
+             check=True)
     run_cmd([pip_executable, "install", "onnx", "onnxruntime-gpu", "--extra-index-url", "https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/"], check=True)
     run_cmd([pip_executable, "install",
              f"accelerate=={ACCELERATE_VERSION}", f"transformers=={TRANSFORMERS_VERSION}", f"diffusers[torch]=={DIFFUSERS_VERSION}",
              "bitsandbytes==0.44.0", "safetensors==0.4.4", "prodigyopt==1.0", "lion-pytorch==0.0.6", "schedulefree==1.4",
              "toml==0.10.2", "einops==0.7.0", "ftfy==6.1.1", "opencv-python==4.8.1.78", "pytorch-lightning==1.9.0",
-             "wandb", "scipy", "requests", "fiftyone", "scikit-learn", "timm", "fairscale",
-             "came-optimizer==0.1.0"  # Добавляем CAME (замените версию на актуальную)
+             "wandb", "scipy", "requests", # requests нужен для скачивания в основном скрипте
+             "fiftyone", "scikit-learn", "timm", "fairscale" # Добавим fiftyone и sklearn для дедупликации
             ], check=True)
     print("[+] Core dependencies installed.")
 

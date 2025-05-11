@@ -11,11 +11,6 @@ except ImportError:
     # Не фатально здесь, но get_gpu_vram вернет 0
     print("[!] Warning: PyTorch not found in common_utils. VRAM detection might fail.", file=sys.stderr)
     torch = None
-try:
-    from rex_lr import REX_LR
-except ImportError:
-    print("[!] Warning: rex_lr.py not found. REX scheduler will not be available.", file=sys.stderr)
-    REX_LR = None
 
 # --- Константы ---
 SUPPORTED_IMG_TYPES = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
