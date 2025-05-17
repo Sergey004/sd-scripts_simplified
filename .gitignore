@@ -20,5 +20,5 @@ variables.txt
 *.code-workspace
 Loras
 Loras/
-Run.sh
+*.sh
 finetune/
