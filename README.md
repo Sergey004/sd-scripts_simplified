@@ -1,4 +1,4 @@
-# BROKEN DONT USE
+# Need rewrite
 
 
 # Local LoRA Training Pipeline (SDXL Focused)
