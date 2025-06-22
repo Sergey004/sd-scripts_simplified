@@ -142,6 +142,36 @@ def apply_kohya_patches(kohya_dir, python_executable, load_truncated=True, bette
          except Exception as e:
              print(f"  [!] Failed to patch diffusers deprecation_utils.py: {e}", file=sys.stderr)
 
+# --- Проверка и установка aria2c ---
+def ensure_aria2():
+    import shutil
+    if shutil.which("aria2c"):
+        print("[*] aria2c is already installed.")
+        return True
+    print("[*] aria2c not found. Attempting to install...")
+    # Определяем пакетный менеджер
+    if shutil.which("apt"):
+        print("[*] Installing aria2 via apt...")
+        run_cmd(["sudo", "apt", "update"], check=False)
+        run_cmd(["sudo", "apt", "install", "-y", "aria2"], check=False)
+    elif shutil.which("dnf"):
+        print("[*] Installing aria2 via dnf...")
+        run_cmd(["sudo", "dnf", "install", "-y", "aria2"], check=False)
+    elif shutil.which("pacman"):
+        print("[*] Installing aria2 via pacman (Arch)...")
+        run_cmd(["sudo", "pacman", "-Sy", "aria2", "--noconfirm"], check=False)
+    elif shutil.which("emerge"):
+        print("[*] Installing aria2 via emerge (Gentoo)...")
+        run_cmd(["sudo", "emerge", "-av", "aria2"], check=False)
+    else:
+        print("[!] No supported package manager found (apt, dnf, pacman, emerge). Please install aria2 manually.", file=sys.stderr)
+        return False
+    # Проверяем снова
+    if shutil.which("aria2c"):
+        print("[+] aria2c installed successfully.")
+        return True
+    print("[!] Failed to install aria2c automatically. Please install it manually.", file=sys.stderr)
+    return False
 
 # --- Основная функция установки ---
 def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
@@ -263,7 +293,8 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
                 os.remove(temp_req_file) # Удаляем временный файл при ошибке
     else:
         print(f"[!] Warning: {kohya_req_file} not found. Cannot install kohya_ss requirements.", file=sys.stderr)
-
+    
+    ensure_aria2()
     # 6. Применение патчей
     apply_kohya_patches(kohya_dir, python_executable)
 

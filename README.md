@@ -18,9 +18,9 @@ This set of scripts provides a modular pipeline for training LoRA (Low-Rank Adap
 
 1. **Python:** Version 3.10 or 3.11 recommended (for `kohya_ss` compatibility).
 2. **Git:** Required for cloning `kohya_ss/sd-scripts`.
-3. **CUDA:** Installed NVIDIA drivers and CUDA Toolkit compatible with the PyTorch version specified in `0_setup_environment.py` (default is `cu124` for PyTorch 2.5.1). Check compatibility on the [PyTorch website](https://pytorch.org/).
+3. **CUDA:** Installed NVIDIA drivers and CUDA Toolkit compatible with the PyTorch version specified in `setup_environment.py` (default is `cu124` for PyTorch 2.5.1). Check compatibility on the [PyTorch website](https://pytorch.org/).
 4. **System:** Scripts were primarily tested under Linux/WSL. Running on native Windows or macOS might require additional setup (especially regarding paths and certain dependencies).
-5. **(Optional but recommended) `aria2c`:** Utility for fast parallel downloads (`sudo apt install aria2` or equivalent). Downloads will be slower without it.
+5. **(Optional but recommended) `aria2c`:** Utility for fast parallel downloads. If not installed, the setup script will attempt to install it automatically.
 6. **(Optional) `FiftyOne`:** Required for the duplicate detection step (`2_detect_duplicates.py`). It's installed by `setup_environment.py`, but might require additional database setup on non-Ubuntu systems (see FiftyOne documentation).
 
 ## Installation and Setup
