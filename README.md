@@ -1,6 +1,3 @@
-# Need rewrite
-
-
 # Local LoRA Training Pipeline (SDXL Focused)
 
 This set of scripts provides a modular pipeline for training LoRA (Low-Rank Adaptation) models for Stable Diffusion (with a focus on SDXL), designed to run on a local machine (Linux/WSL recommended, may require adaptation for Windows/macOS). It is based on the workflow presented in the Colab notebooks by Hollowstrawberry and utilizes `kohya_ss/sd-scripts` as the training backend.
