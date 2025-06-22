@@ -65,7 +65,7 @@ The primary way to run the pipeline is via `master_train.py`.
 python master_train.py --project_name <your_project_name> --base_model <path_or_URL> [stage_options] [stage_parameters...]
 ```
 
-### 2. Simple Gradio Web UI (recommended for most users)
+### 2. Simple Gradio Web UI (recommended for most users) **WIP**
 
 A user-friendly web interface is available via Gradio. This allows you to set all parameters and launch training from your browser, without editing scripts or running long commands.
 

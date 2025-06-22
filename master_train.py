@@ -60,6 +60,9 @@ def parse_master_arguments():
     g_main.add_argument("--base_dir", type=str, default=".", help="Base directory for project, kohya_ss, venv.")
     g_main.add_argument("--venv_name", type=str, default="lora_env", help="Name of the venv directory.")
     g_main.add_argument("--kohya_dir_name", type=str, default="kohya_ss", help="Name of the kohya_ss directory.")
+    # --- UI/CLI detection ---
+    parser.add_argument("--from_ui", action="store_true", help="Flag to indicate launch from Gradio UI.")
+    parser.add_argument("--init_project_only", action="store_true", help="Only create project skeleton and exit.")
     # --- Управление Этапами ---
     g_steps = parser.add_argument_group('Pipeline Steps Control')
     g_steps.add_argument("--run_steps", type=str, default="setup,scrape,dedupe,tag,curate,config,train", help="Comma-separated list of steps to run (e.g., 'tag,curate,config,train'). Steps: setup, scrape, dedupe, tag, curate, config, train.")
@@ -156,6 +159,43 @@ def main():
     master_args = parse_master_arguments()
     master_args_dict = vars(master_args).copy()
 
+    # === UI/CLI detection logic ===
+    launched_from_ui = getattr(master_args, "from_ui", False)
+    if launched_from_ui:
+        print("[INFO] Launched from Gradio UI (--from_ui detected)")
+    else:
+        print("[INFO] Launched from CLI (no --from_ui)")
+
+    # --- Если только создание скелета проекта ---
+    if getattr(master_args, "init_project_only", False):
+        base_dir = os.path.abspath(master_args.base_dir)
+        project_dir = os.path.join(base_dir, master_args.project_name)
+        paths = {
+            "project": project_dir,
+            "images": os.path.join(project_dir, "dataset"),
+            "output": os.path.join(project_dir, "output"),
+            "logs": os.path.join(project_dir, "logs"),
+            "config": os.path.join(project_dir, "config"),
+        }
+        print("[*] Creating project skeleton...")
+        for key in ["project", "images", "output", "logs", "config"]:
+            try:
+                os.makedirs(paths[key], exist_ok=True)
+                print(f"[+] Created: {paths[key]}")
+            except OSError as e:
+                print(f"[X] CRITICAL ERROR: Could not create directory {paths[key]}: {e}", file=sys.stderr)
+                sys.exit(1)
+        print("[✓] Project skeleton created.")
+        return
+
+    # --- Отключаем паузы при запуске из UI ---
+    wait_between_steps = not master_args.no_wait
+    skip_initial_pause = master_args.skip_initial_pause
+    if launched_from_ui:
+        wait_between_steps = False
+        skip_initial_pause = True
+        print("[INFO] All pauses are disabled for UI mode.")
+
     # Определяем пути
     base_dir = os.path.abspath(master_args.base_dir)
     venv_dir = os.path.join(base_dir, master_args.venv_name)
@@ -172,9 +212,7 @@ def main():
     steps_to_skip = set(s.strip() for s in master_args.skip_steps.lower().split(',') if s.strip())
     steps_to_run = steps_to_run - steps_to_skip
 
-    wait_between_steps = not master_args.no_wait
-    skip_initial_pause = master_args.skip_initial_pause
-
+    # wait_between_steps и skip_initial_pause уже определены выше
     print("--- Master Script Start ---")
     print(f"Project: {master_args.project_name}"); print(f"Base Dir: {base_dir}"); print(f"Wait between steps: {wait_between_steps}"); print(f"Skip initial pause: {skip_initial_pause}"); print("-" * 20)
     print(f"Steps to run: {', '.join(sorted(list(steps_to_run)))}"); print("-" * 20)
@@ -188,7 +226,7 @@ def main():
     # ===> НАЧАЛЬНАЯ ПАУЗА <===
     if not skip_initial_pause:
         print("-" * 20); print(f"<?> Please prepare your dataset now."); print(f"    Ensure images are inside: {paths['images']}")
-        if "tag" not in steps_to_run and "curate" not in steps_to_run: print(f"    Ensure tag files ({master_args.caption_extension}) are also in that folder.")
+        if "tag" not in steps_to_run and "curate" not in steps_to_run: print(f"    Ensure tag files ({master_args.caption_extension}) are также in that folder.")
         try: input("<?> Press Enter when ready, or Ctrl+C to abort...")
         except KeyboardInterrupt: print("\n[!] Aborted by user."); sys.exit(0)
         print("-" * 20)

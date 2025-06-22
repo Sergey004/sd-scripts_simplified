@@ -66,7 +66,10 @@ TRANSLATIONS = {
         "Decoder Status": "Decoder Status",
         "Training UI": "Training UI",
         "Decoded successfully.": "Decoded successfully.",
-        "Language": "Language"
+        "Language": "Language",
+        "Create Project": "Create Project",
+        "Project created successfully.": "Project created successfully.",
+        "Project creation failed.": "Project creation failed.",
     },
     "ru": {
         "Project Name": "Имя проекта",
@@ -123,14 +126,28 @@ TRANSLATIONS = {
         "Decoder Status": "Статус декодера",
         "Training UI": "UI обучения",
         "Decoded successfully.": "Декодировано успешно.",
-        "Language": "Язык"
+        "Language": "Язык",
+        "Create Project": "Создать проект",
+        "Project created successfully.": "Проект успешно создан.",
+        "Project creation failed.": "Ошибка создания проекта.",
     },
 }
 def t(label, lang):
     return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(label, label)
 
-# Function to run training
+# --- Функция для создания скелета проекта с реальным временем ---
+def create_project_skeleton(project_name, base_dir, base_model):
+    cmd = f"python master_train.py --project_name '{project_name}' --base_dir '{base_dir}' --base_model '{base_model}' --init_project_only --from_ui"
+    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    for line in process.stdout:
+        yield line
+    process.wait()
+    if process.returncode == 0:
+        yield "\nProject created successfully."
+    else:
+        yield f"\nProject creation failed. Code: {process.returncode}"
 
+# --- Функция для запуска обучения с реальным временем ---
 def run_training(
     project_name,
     base_dir,
@@ -226,13 +243,15 @@ def run_training(
           f"--lowram " if lowram else "" \
           f"--max_bucket_reso {max_bucket_reso} " \
           f"--num_cpu_threads {num_cpu_threads} "
-    # Remove double spaces
     cmd = ' '.join(cmd.split())
-    try:
-        result = subprocess.run(shlex.split(cmd), capture_output=True, text=True, check=True)
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        return f"Error: {e.stderr}"
+    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    for line in process.stdout:
+        yield line
+    process.wait()
+    if process.returncode == 0:
+        yield "\n[Done]"
+    else:
+        yield f"\n[Error] Exit code: {process.returncode}"
 
 def decode_sh_file(sh_text):
     """
@@ -282,6 +301,15 @@ def fill_fields_from_sh(sh_text):
                 result.append(val)
     result.append("Decoded successfully.")
     return result
+
+# --- Функция для создания скелета проекта ---
+def create_project_skeleton(project_name, base_dir, base_model):
+    cmd = f"python master_train.py --project_name '{project_name}' --base_dir '{base_dir}' --base_model '{base_model}' --init_project_only --from_ui"
+    try:
+        result = subprocess.run(shlex.split(cmd), capture_output=True, text=True, check=True)
+        return result.stdout or "Project created successfully."
+    except subprocess.CalledProcessError as e:
+        return f"Project creation failed.\n{e.stderr}"
 
 # --- Тема Gradio ---
 theme = gr.themes.Soft(
@@ -362,16 +390,28 @@ with gr.Blocks(theme=theme) as demo:
             sh_input: gr.update(label=t("Paste .sh file content here", lang)),
             decode_btn: gr.update(value=t("Decode .sh file and fill UI fields", lang)),
             decode_status: gr.update(label=t("Decoder Status", lang)),
+            create_proj_btn: gr.update(value="🗂️ " + t("Create Project", lang)),
+            create_proj_log: gr.update(label=t("Project Creation Log", lang)),
         }
 
     with gr.Tab("Training UI"):
+        # Сначала определяем base_model и base_vae, чтобы они были доступны для Project Setup
+        base_model = gr.Textbox(label="Base Model (path or URL)", value="https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0/resolve/main/Illustrious-XL-v0.1.safetensors", info="You can use a local file path or a URL")
+        base_vae = gr.Textbox(label="Base VAE", value="stabilityai/sdxl-vae")
         with gr.Accordion("Project Setup", open=True):
             project_name = gr.Textbox(label="Project Name", value="Lora_name")
             base_dir = gr.Textbox(label="Base Directory", value="./Loras")
             run_steps = gr.Textbox(label="Steps (tag,curate,config,train)", value="tag,curate,config,train")
-        with gr.Accordion("Model & VAE", open=False):
-            base_model = gr.Textbox(label="Base Model (path or URL)", value="https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0/resolve/main/Illustrious-XL-v0.1.safetensors", info="You can use a local file path or a URL")
-            base_vae = gr.Textbox(label="Base VAE", value="stabilityai/sdxl-vae")
+            # --- Кнопка и лог создания проекта ---
+            create_proj_btn = gr.Button("🗂️ Create Project")
+            create_proj_log = gr.Textbox(label="Project Creation Log", lines=3, interactive=False)
+            create_proj_btn.click(
+                create_project_skeleton,
+                inputs=[project_name, base_dir, base_model],
+                outputs=create_proj_log,
+                api_name=None,
+                show_progress=True,
+            )
         with gr.Accordion("Tagging", open=False):
             tagging_method = gr.Dropdown(label="Tagging Method", choices=["wd14", "blip"], value="wd14")
             tagger_threshold = gr.Slider(label="Tagger Threshold", minimum=0.0, maximum=1.0, value=0.35, step=0.01)
@@ -416,12 +456,38 @@ with gr.Blocks(theme=theme) as demo:
             max_bucket_reso = gr.Slider(label="Max Bucket Reso", minimum=512, maximum=8192, value=4096, step=64)
             num_cpu_threads = gr.Slider(label="Num CPU Threads", minimum=1, maximum=32, value=12, step=1)
         gr.Markdown("---")
-        output = gr.Textbox(label="Execution Log", lines=20)
+        output = gr.Textbox(label="Execution Log", lines=20, elem_id="exec-log")
         btn = gr.Button("🚀 Start Training", elem_id="start-btn")
+        # --- HTML для автоскролла ---
+        gr.HTML("""
+        <script>
+        function scrollToBottom(id) {
+            var el = document.getElementById(id);
+            if (el) { el.scrollTop = el.scrollHeight; }
+        }
+        // Для Execution Log
+        const observer1 = new MutationObserver(() => scrollToBottom('exec-log'));
+        observer1.observe(document.getElementById('exec-log'), { childList: true, subtree: true });
+        // Для Project Creation Log
+        const observer2 = new MutationObserver(() => scrollToBottom('proj-log'));
+        observer2.observe(document.getElementById('proj-log'), { childList: true, subtree: true });
+        </script>
+        """)
         btn.click(
             run_training,
             inputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads],
-            outputs=output
+            outputs=output,
+            api_name=None,
+            show_progress=True,
+
+        )
+        create_proj_btn.click(
+            create_project_skeleton,
+            inputs=[project_name, base_dir, base_model],
+            outputs=create_proj_log,
+            api_name=None,
+            show_progress=True,
+
         )
     with gr.Tab("SH Decoder"):
         gr.Markdown("## Paste your .sh launch script below. The UI fields will be filled automatically.")
@@ -437,7 +503,7 @@ with gr.Blocks(theme=theme) as demo:
     lang_dropdown.change(
         update_labels,
         inputs=[lang_dropdown],
-        outputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads, output, btn, sh_input, decode_btn, decode_status]
+        outputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads, output, btn, sh_input, decode_btn, decode_status, create_proj_btn, create_proj_log]
     )
 
 demo.launch()
