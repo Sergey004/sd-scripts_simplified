@@ -36,7 +36,7 @@ def tag_images(images_folder, kohya_dir, venv_dir, method="wd14", batch_size=8, 
     # Выполнение теггера
     if method == "wd14":
         script_path = os.path.join(kohya_dir, "finetune", "tag_images_by_wd14_tagger.py")
-        model_repo = "SmilingWolf/wd-v1-4-swinv2-tagger-v3"
+        model_repo = "SmilingWolf/wd-eva02-large-tagger-v3"
         if not os.path.exists(script_path): print(f"[!] WD14 Tagger script not found: {script_path}. Skipping.", file=sys.stderr); return
         print(f"[*] Running WD14 Tagger (model: {model_repo}, threshold: {threshold})...")
         model_cache_dir = os.path.join(kohya_dir, "wd14_models_cache"); os.makedirs(model_cache_dir, exist_ok=True)
