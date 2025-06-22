@@ -56,6 +56,10 @@ The installation process is performed **once** using the `setup_environment.py` 
 
 ## Usage
 
+You can run the pipeline in two ways:
+
+### 1. Command Line (classic)
+
 The primary way to run the pipeline is via `master_train.py`.
 
 **General Command Format:**
@@ -63,6 +67,26 @@ The primary way to run the pipeline is via `master_train.py`.
 ```bash
 python master_train.py --project_name <your_project_name> --base_model <path_or_URL> [stage_options] [stage_parameters...]
 ```
+
+### 2. Simple Gradio Web UI (recommended for most users)
+
+A user-friendly web interface is available via Gradio. This allows you to set all parameters and launch training from your browser, without editing scripts or running long commands.
+
+**To launch the Gradio UI:**
+
+```bash
+# Activate venv first!
+python gradio_lora_train.py
+```
+
+*Gradio will be installed automatically during environment setup, no need to install it manually.*
+
+* Open the link shown in the terminal (usually <http://127.0.0.1:7860/>).
+* Fill in the fields and click "Start Training".
+* All options from the command line are available as fields in the UI.
+* The "Base Model" field accepts both local file paths and URLs.
+
+---
 
 **Before Running:**
 
@@ -177,4 +201,4 @@ This project builds upon the work and code from the following authors and projec
 
 * [Hollowstrawberry](https://github.com/hollowstrawberry/kohya-colab) for the original Colab notebooks and workflow.
 * [kohya-ss](https://github.com/kohya-ss/sd-scripts) for the core LoRA training toolkit.
-* Google Gemini 2.5 Pro for creating this
+* Google Gemini 2.5 Pro + GPT-4.1 (Gradio UI) for creating this project.
