@@ -2,6 +2,9 @@ import gradio as gr
 import subprocess
 import shlex
 import re
+import os
+os.environ['GRADIO_ANALYTICS_ENABLED'] = '0'
+from gradio_logsview import LogsViewRunner
 
 # --- Localization dictionaries ---
 LANGUAGES = {
@@ -70,6 +73,13 @@ TRANSLATIONS = {
         "Create Project": "Create Project",
         "Project created successfully.": "Project created successfully.",
         "Project creation failed.": "Project creation failed.",
+        "Config Builder": "Config Builder",
+        "Generated Command": "Generated Command",
+        "Copy Command": "Copy Command",
+        "Export as .sh": "Export as .sh",
+        "Export as .txt": "Export as .txt",
+        "Command exported successfully.": "Command exported successfully.",
+        "Export failed.": "Export failed.",
     },
     "ru": {
         "Project Name": "Имя проекта",
@@ -130,6 +140,13 @@ TRANSLATIONS = {
         "Create Project": "Создать проект",
         "Project created successfully.": "Проект успешно создан.",
         "Project creation failed.": "Ошибка создания проекта.",
+        "Config Builder": "Билдер конфига",
+        "Generated Command": "Сгенерированная команда",
+        "Copy Command": "Скопировать команду",
+        "Export as .sh": "Экспортировать как .sh",
+        "Export as .txt": "Экспортировать как .txt",
+        "Command exported successfully.": "Команда успешно экспортирована.",
+        "Export failed.": "Ошибка экспорта.",
     },
 }
 def t(label, lang):
@@ -138,14 +155,13 @@ def t(label, lang):
 # --- Функция для создания скелета проекта с реальным временем ---
 def create_project_skeleton(project_name, base_dir, base_model):
     cmd = f"python master_train.py --project_name '{project_name}' --base_dir '{base_dir}' --base_model '{base_model}' --init_project_only --from_ui"
-    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-    for line in process.stdout:
-        yield line
-    process.wait()
-    if process.returncode == 0:
-        yield "\nProject created successfully."
+    runner = LogsViewRunner()
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    yield from runner.run_command([cmd], cwd=cwd)
+    if runner.last_returncode == 0:
+        yield runner.log("\nProject created successfully.")
     else:
-        yield f"\nProject creation failed. Code: {process.returncode}"
+        yield runner.log(f"\nProject creation failed. Code: {runner.last_returncode}")
 
 # --- Функция для запуска обучения с реальным временем ---
 def run_training(
@@ -244,14 +260,13 @@ def run_training(
           f"--max_bucket_reso {max_bucket_reso} " \
           f"--num_cpu_threads {num_cpu_threads} "
     cmd = ' '.join(cmd.split())
-    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-    for line in process.stdout:
-        yield line
-    process.wait()
-    if process.returncode == 0:
-        yield "\n[Done]"
+    runner = LogsViewRunner()
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    yield from runner.run_command([cmd], cwd=cwd)
+    if runner.last_returncode == 0:
+        yield runner.log("\n[Done]")
     else:
-        yield f"\n[Error] Exit code: {process.returncode}"
+        yield runner.log(f"\n[Error] Exit code: {runner.last_returncode}")
 
 def decode_sh_file(sh_text):
     """
@@ -310,6 +325,173 @@ def create_project_skeleton(project_name, base_dir, base_model):
         return result.stdout or "Project created successfully."
     except subprocess.CalledProcessError as e:
         return f"Project creation failed.\n{e.stderr}"
+
+def build_master_train_cmd(
+    project_name,
+    base_dir,
+    run_steps,
+    base_model,
+    base_vae,
+    tagging_method,
+    tagger_threshold,
+    tagger_batch_size,
+    tagger_blacklist,
+    caption_extension,
+    activation_tag,
+    remove_tags,
+    remove_duplicate_tags,
+    sort_tags_alpha,
+    overwrite_tags,
+    resolution,
+    keep_tokens,
+    preferred_unit,
+    how_many,
+    save_every_n_epochs,
+    keep_only_last_n_epochs,
+    num_repeats,
+    unet_lr,
+    text_encoder_lr,
+    lr_scheduler,
+    lr_scheduler_num_cycles,
+    lr_warmup_ratio,
+    min_snr_gamma,
+    multinoise,
+    lora_type,
+    network_dim,
+    network_alpha,
+    auto_vram_params,
+    train_batch_size,
+    optimizer,
+    optimizer_args,
+    use_recommended_optimizer_args,
+    precision,
+    cross_attention,
+    cache_latents,
+    cache_latents_to_disk,
+    gradient_checkpointing,
+    seed,
+    lowram,
+    max_bucket_reso,
+    num_cpu_threads
+):
+    # Формируем команду в стиле bash-скрипта с переносами и отступами
+    lines = ["python master_train.py \\"]
+    def add_arg(arg, val=None, quote=True):
+        if val is None or val is False:
+            return
+        if val is True:
+            lines.append(f"    --{arg} \\")
+        else:
+            if quote and isinstance(val, str):
+                lines.append(f"    --{arg} \"{val}\" \\")
+            else:
+                lines.append(f"    --{arg} {val} \\")
+    add_arg("project_name", project_name)
+    add_arg("base_dir", base_dir)
+    add_arg("run_steps", run_steps)
+    add_arg("base_model", base_model)
+    add_arg("base_vae", base_vae)
+    add_arg("tagging_method", tagging_method)
+    add_arg("tagger_threshold", tagger_threshold, quote=False)
+    add_arg("tagger_batch_size", tagger_batch_size, quote=False)
+    add_arg("tagger_blacklist", tagger_blacklist)
+    add_arg("caption_extension", caption_extension)
+    add_arg("activation_tag", activation_tag)
+    add_arg("remove_tags", remove_tags)
+    if remove_duplicate_tags:
+        add_arg("remove_duplicate_tags", True, quote=False)
+    if sort_tags_alpha:
+        add_arg("sort_tags_alpha", True, quote=False)
+    if overwrite_tags:
+        add_arg("overwrite_tags", True, quote=False)
+    add_arg("resolution", resolution, quote=False)
+    add_arg("keep_tokens", keep_tokens, quote=False)
+    add_arg("preferred_unit", preferred_unit)
+    add_arg("how_many", how_many, quote=False)
+    add_arg("save_every_n_epochs", save_every_n_epochs, quote=False)
+    add_arg("keep_only_last_n_epochs", keep_only_last_n_epochs, quote=False)
+    if num_repeats is not None:
+        add_arg("num_repeats", num_repeats, quote=False)
+    add_arg("unet_lr", unet_lr, quote=False)
+    add_arg("text_encoder_lr", text_encoder_lr, quote=False)
+    add_arg("lr_scheduler", lr_scheduler)
+    add_arg("lr_scheduler_num_cycles", lr_scheduler_num_cycles, quote=False)
+    add_arg("lr_warmup_ratio", lr_warmup_ratio, quote=False)
+    add_arg("min_snr_gamma", min_snr_gamma, quote=False)
+    if multinoise:
+        add_arg("multinoise", True, quote=False)
+    add_arg("lora_type", lora_type)
+    add_arg("network_dim", network_dim, quote=False)
+    add_arg("network_alpha", network_alpha, quote=False)
+    if auto_vram_params:
+        add_arg("auto_vram_params", True, quote=False)
+    if train_batch_size is not None:
+        add_arg("train_batch_size", train_batch_size, quote=False)
+    if optimizer:
+        add_arg("optimizer", optimizer)
+    if optimizer_args:
+        add_arg("optimizer_args", optimizer_args)
+    if use_recommended_optimizer_args:
+        add_arg("use_recommended_optimizer_args", True, quote=False)
+    if precision:
+        add_arg("precision", precision)
+    add_arg("cross_attention", cross_attention)
+    if cache_latents:
+        add_arg("cache_latents", True, quote=False)
+    if cache_latents_to_disk:
+        add_arg("cache_latents_to_disk", True, quote=False)
+    if gradient_checkpointing:
+        add_arg("gradient_checkpointing", True, quote=False)
+    add_arg("seed", seed, quote=False)
+    if lowram:
+        add_arg("lowram", True, quote=False)
+    add_arg("max_bucket_reso", max_bucket_reso, quote=False)
+    add_arg("num_cpu_threads", num_cpu_threads, quote=False)
+    # Удаляем последний \
+    if lines[-1].endswith(' \\'):
+        lines[-1] = lines[-1][:-2]
+    elif lines[-1].endswith(' \\'):
+        lines[-1] = lines[-1][:-1]
+    # Формируем финальный .sh-скрипт
+    script = "#!/bin/bash\n"
+    script += "# (Необязательно, но хорошая практика)\n\n"
+    script += "# --- Активация окружения ---\n"
+    script += "# Убедитесь, что путь к вашему venv правильный!\n"
+    script += "# source ./Loras/lora_env/bin/activate || exit 1 # Пример с выходом при ошибке\n\n"
+    script += '\n'.join(lines) + '\n'
+    script += "\n# --- Проверка завершения ---\n"
+    script += "EXIT_CODE=$?\n"
+    script += "if [ $EXIT_CODE -eq 0 ]; then\n"
+    script += "    echo \"Master script finished successfully.\"\n"
+    script += "else\n"
+    script += "    echo \"Master script failed with exit code $EXIT_CODE.\"\n"
+    script += "fi\n"
+    return script
+
+import tempfile
+
+def export_command_to_file(cmd, filetype):
+    try:
+        suffix = ".sh" if filetype == "sh" else ".txt"
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", suffix=suffix, encoding="utf-8") as f:
+            if filetype == "sh":
+                f.write("#!/bin/bash\n")
+                f.write("# (Необязательно, но хорошая практика)\n\n")
+                f.write("# --- Активация окружения ---\n")
+                f.write("# Убедитесь, что путь к вашему venv правильный!\n")
+                f.write("# source ./Loras/lora_env/bin/activate || exit 1 # Пример с выходом при ошибке\n\n")
+            f.write(cmd + "\n")
+            if filetype == "sh":
+                f.write("\n# --- Проверка завершения ---\n")
+                f.write("EXIT_CODE=$?\n")
+                f.write("if [ $EXIT_CODE -eq 0 ]; then\n")
+                f.write("    echo \"Master script finished successfully.\"\n")
+                f.write("else\n")
+                f.write("    echo \"Master script failed with exit code $EXIT_CODE.\"\n")
+                f.write("fi\n")
+            return f.name, True
+    except Exception:
+        return "", False
 
 # --- Тема Gradio ---
 theme = gr.themes.Soft(
@@ -392,6 +574,9 @@ with gr.Blocks(theme=theme) as demo:
             decode_status: gr.update(label=t("Decoder Status", lang)),
             create_proj_btn: gr.update(value="🗂️ " + t("Create Project", lang)),
             create_proj_log: gr.update(label=t("Project Creation Log", lang)),
+            config_cmd: gr.update(label=t("Generated Command", lang)),
+            export_status: gr.update(),
+            config_builder_header: gr.update(value=f"### {t('Config Builder', lang)}"),
         }
 
     with gr.Tab("Training UI"):
@@ -404,7 +589,7 @@ with gr.Blocks(theme=theme) as demo:
             run_steps = gr.Textbox(label="Steps (tag,curate,config,train)", value="tag,curate,config,train")
             # --- Кнопка и лог создания проекта ---
             create_proj_btn = gr.Button("🗂️ Create Project")
-            create_proj_log = gr.Textbox(label="Project Creation Log", lines=3, interactive=False)
+            create_proj_log = gr.Textbox(label="Project Creation Log", lines=3, interactive=False, elem_id="proj-log")
             create_proj_btn.click(
                 create_project_skeleton,
                 inputs=[project_name, base_dir, base_model],
@@ -499,11 +684,27 @@ with gr.Blocks(theme=theme) as demo:
             inputs=[sh_input],
             outputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads, decode_status]
         )
+    with gr.Tab("Config Builder"):
+        config_builder_header = gr.Markdown("### Config Builder", elem_id="config-builder-header")
+        config_cmd = gr.Textbox(label=t("Generated Command", "en"), lines=6, interactive=False, show_copy_button=True)
+        export_status = gr.Textbox(label="", interactive=False, visible=False)
+
+        # Функция обновления команды при изменении любого поля
+        def update_config_cmd(*args):
+            return build_master_train_cmd(*args)
+
+        # Обновлять команду при любом изменении полей
+        config_inputs = [project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads]
+        for inp in config_inputs:
+            inp.change(update_config_cmd, inputs=config_inputs, outputs=config_cmd)
+        # Инициализация значения команды
+        config_cmd.value = build_master_train_cmd(*[x.value for x in config_inputs])
+
 
     lang_dropdown.change(
         update_labels,
         inputs=[lang_dropdown],
-        outputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads, output, btn, sh_input, decode_btn, decode_status, create_proj_btn, create_proj_log]
+        outputs=[project_name, base_dir, run_steps, base_model, base_vae, tagging_method, tagger_threshold, tagger_batch_size, tagger_blacklist, caption_extension, activation_tag, remove_tags, remove_duplicate_tags, sort_tags_alpha, overwrite_tags, resolution, keep_tokens, preferred_unit, how_many, save_every_n_epochs, keep_only_last_n_epochs, num_repeats, unet_lr, text_encoder_lr, lr_scheduler, lr_scheduler_num_cycles, lr_warmup_ratio, min_snr_gamma, multinoise, lora_type, network_dim, network_alpha, auto_vram_params, train_batch_size, optimizer, optimizer_args, use_recommended_optimizer_args, precision, cross_attention, cache_latents, cache_latents_to_disk, gradient_checkpointing, seed, lowram, max_bucket_reso, num_cpu_threads, output, btn, sh_input, decode_btn, decode_status, create_proj_btn, create_proj_log, config_cmd, export_status]
     )
 
 demo.launch()
