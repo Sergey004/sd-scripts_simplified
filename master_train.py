@@ -226,7 +226,7 @@ def main():
     # ===> НАЧАЛЬНАЯ ПАУЗА <===
     if not skip_initial_pause:
         print("-" * 20); print(f"<?> Please prepare your dataset now."); print(f"    Ensure images are inside: {paths['images']}")
-        if "tag" not in steps_to_run and "curate" not in steps_to_run: print(f"    Ensure tag files ({master_args.caption_extension}) are также in that folder.")
+        if "tag" not in steps_to_run and "curate" not in steps_to_run: print(f"    Ensure tag files ({master_args.caption_extension}) are also in that folder.")
         try: input("<?> Press Enter when ready, or Ctrl+C to abort...")
         except KeyboardInterrupt: print("\n[!] Aborted by user."); sys.exit(0)
         print("-" * 20)
