@@ -272,10 +272,9 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
                 os.remove(temp_req_file)
 
             # Установка специфичных вещей kohya, если они есть и не в requirements (пример)
-            # setup_py_path = os.path.join(kohya_dir, 'setup.py')
-            # if os.path.exists(setup_py_path):
-            #     run_cmd([pip_executable, 'install', '-e', '.'], check=True, cwd=kohya_dir)
-            run_cmd([pip_executable, "install" "{kohya_dir}"], check=True) # Установка kohya_ss из локального каталога
+            setup_py_path = os.path.join(kohya_dir, 'setup.py')
+            if os.path.exists(setup_py_path):
+                run_cmd([pip_executable, 'install', '-e', '.'], check=True, cwd=kohya_dir) # Установка kohya_ss из локального каталога
             print("[*] Kohya ss scripts installed.")
         except FileNotFoundError as e:
             print(f"[!] Error: {e}. File not found. Please check the path.", file=sys.stderr)
