@@ -271,7 +271,7 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
             if os.path.exists(temp_req_file):
                 os.remove(temp_req_file)
 
-            # Установка специфичных вещей kohya, если они есть и не в requirements (пример)
+            # Установка kohya library,
             setup_py_path = os.path.join(kohya_dir, 'setup.py')
             if os.path.exists(setup_py_path):
                 run_cmd([pip_executable, 'install', '-e', '.'], check=True, cwd=kohya_dir) # Установка kohya_ss из локального каталога
