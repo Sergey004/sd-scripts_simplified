@@ -218,8 +218,9 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
              "bitsandbytes==0.44.0", "safetensors==0.4.4", "prodigyopt==1.0", "lion-pytorch==0.0.6", "schedulefree==1.4",
              "toml==0.10.2", "einops==0.7.0", "ftfy==6.1.1", "opencv-python==4.8.1.78", "pytorch-lightning==1.9.0",
              "wandb", "scipy", "requests", # requests нужен для скачивания в основном скрипте
-             "fiftyone", "scikit-learn", "timm", "fairscale" , "gradio" # Добавим fiftyone и sklearn для дедупликации
+             "fiftyone", "scikit-learn", "timm", "fairscale" # Добавим fiftyone и sklearn для дедупликации
             ], check=True)
+    run_cmd([pip_executable, "install" ,"https://huggingface.co/spaces/cocktailpeanut/gradio_logsview/resolve/main/gradio_logsview-0.0.17-py3-none-any.whl"])
     print("[+] Core dependencies installed.")
 
     # 4. Клонирование/Обновление Kohya-ss
