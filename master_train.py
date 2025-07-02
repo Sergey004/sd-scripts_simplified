@@ -12,11 +12,12 @@ try:
     import common_utils
 except ImportError:
     print("[X] CRITICAL ERROR: common_utils.py not found.", file=sys.stderr)
-    print(f"[-] Please ensure common_utils.py is in the same directory as master_train.py ({script_dir}).", file=sys.stderr)
+    print(f"[-] Please ensure common_utils.py is in the same directory as master_train.py ({script_dir}).", file=sys.stderr) # type: ignore
     sys.exit(1)
 finally:
-    if script_dir in sys.path:
-        sys.path.remove(script_dir)
+    if script_dir in sys.path: # type: ignore
+        sys.path.remove(script_dir) # type: ignore
+
 
 # --- Функция для запуска дочернего скрипта с паузой ---
 # ... (код run_stage_script без изменений) ...
