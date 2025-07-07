@@ -42,38 +42,68 @@ def scrape_images_gelbooru(tags, images_folder, config_folder, project_name, max
 def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None, cookies_file=None):
     """Скачивает изображения с любого поддерживаемого сайта через gallery-dl по ссылке. Поддержка cookies.txt."""
     print(f"\n--- Image Scraping (gallery-dl) ---\n[*] URL: {url}")
-    try:
-        import gallery_dl
-    except ImportError:
-        print("[!] gallery-dl is not installed. Please install it with 'pip install gallery-dl'.")
-        return
-    results = []
-    def result_callback(info, **kwargs):
-        if info.get("_type") == "file":
-            results.append(info)
-            if len(results) >= limit:
-                return False
-        return True
-    opts = {
-        "base-directory": images_folder,
-        "download": True,
-        "progress": False,
-        "quiet": False,
-        "abort": False,
-        "max-downloads": limit,
-        "callbacks": {"file": result_callback}
-    }
-    if extractor_opts:
-        opts["extractor"] = extractor_opts
+    import subprocess
+    import shlex
+    # Build gallery-dl command
+    cmd = [
+        "gallery-dl",
+        url,
+        "-d", images_folder,
+        "-v",              # Enable verbose logging
+        "-r", "",          # No delay between requests
+        "-o", "proxy-env=false", # Disable proxy from env
+        "--config-ignore"  # Ignore config for max speed (user request)
+    ]
+    # gallery-dl does not support a universal --limit argument for all sites.
+    # Try to use --range 1-N for all sites if limit is set and > 0
+    if limit and limit > 0:
+        cmd += ["--range", f"1-{limit}"]
     if cookies_file:
-        opts["cookies"] = cookies_file
+        cmd += ["--cookies", cookies_file]
         print(f"[*] Using cookies: {cookies_file}")
+    # Run gallery-dl
     try:
-        gallery_dl.download(url, opts)
+        print(f"[>] Running: {' '.join(shlex.quote(x) for x in cmd)}")
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        # Stream gallery-dl output live
+        for line in process.stdout:
+            print(f"[gallery-dl] {line.rstrip()}")
+        process.wait()
+        if process.returncode != 0:
+            print(f"[!] gallery-dl exited with code {process.returncode}")
+            return
+    except FileNotFoundError:
+        print("[!] gallery-dl is not installed or not in PATH. Please install it with 'pip install gallery-dl' or via your package manager.")
+        return
     except Exception as e:
         print(f"[!] gallery-dl error: {e}")
         return
-    print(f"[+] Downloaded files: {len(results)} (folder: {images_folder})")
+
+    # Move all downloaded files from subfolders to images_folder
+    import glob
+    import shutil
+    print("[i] Moving all images from subfolders to dataset root...")
+    for root, dirs, files in os.walk(images_folder):
+        if root == images_folder:
+            continue
+        for file in files:
+            src = os.path.join(root, file)
+            dst = os.path.join(images_folder, file)
+            # Avoid overwrite
+            if os.path.exists(dst):
+                base, ext = os.path.splitext(file)
+                i = 1
+                while os.path.exists(os.path.join(images_folder, f"{base}_{i}{ext}")):
+                    i += 1
+                dst = os.path.join(images_folder, f"{base}_{i}{ext}")
+            shutil.move(src, dst)
+    # Optionally remove empty subfolders
+    for root, dirs, files in os.walk(images_folder, topdown=False):
+        if root == images_folder:
+            continue
+        if not os.listdir(root):
+            os.rmdir(root)
+    print(f"[+] All images moved to: {images_folder}")
 
 # --- Функция-обёртка для поддержки разных сайтов ---
 def scrape_images_supported_site(site, tags, images_folder, config_folder, project_name, limit=1000, user=None, cookies_file=None):

@@ -23,3 +23,5 @@ Loras/
 *.sh
 finetune/
 Collab_examples/
+cookies.txt
+*_cookies.txt
