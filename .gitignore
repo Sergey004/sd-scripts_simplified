@@ -25,3 +25,5 @@ finetune/
 Collab_examples/
 cookies.txt
 *_cookies.txt
+*_env
+kohya_ss/

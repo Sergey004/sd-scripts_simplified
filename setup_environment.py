@@ -49,7 +49,22 @@ def run_cmd(command, check=True, shell=False, capture_output=False, text=False, 
             sys.exit("Unexpected error during command execution.")
         return None
 
-
+# --- Функция для полного пересоздания venv ---
+def reinstall_venv(base_dir, venv_name):
+    """Полностью удаляет и пересоздаёт виртуальное окружение."""
+    import shutil
+    base_dir = os.path.abspath(base_dir)
+    venv_dir = os.path.join(base_dir, venv_name)
+    if os.path.exists(venv_dir):
+        print(f"[*] Removing existing virtual environment: {venv_dir}")
+        shutil.rmtree(venv_dir)
+        print("[+] Old virtual environment removed.")
+    else:
+        print(f"[*] No existing virtual environment found at: {venv_dir}")
+    print(f"[*] Creating new virtual environment in {venv_dir}...")
+    run_cmd([sys.executable, '-m', 'venv', venv_dir], check=True)
+    print("[+] New virtual environment created.")
+    print("\n--- Environment Reinstallation Complete ---")
 # --- Функция применения патчей (копия из основного скрипта) ---
 def apply_kohya_patches(kohya_dir, python_executable, load_truncated=True, better_epoch_names=True, fix_diffusers=True):
     """Применяет патчи к скриптам kohya_ss."""
@@ -218,7 +233,7 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
              "bitsandbytes==0.44.0", "safetensors==0.4.4", "prodigyopt==1.0", "lion-pytorch==0.0.6", "schedulefree==1.4",
              "toml==0.10.2", "einops==0.7.0", "ftfy==6.1.1", "opencv-python==4.8.1.78", "pytorch-lightning==1.9.0",
              "wandb", "scipy", "requests", # requests нужен для скачивания в основном скрипте
-             "fiftyone", "scikit-learn", "timm", "fairscale", "gallery_dl" # Добавим fiftyone и sklearn для дедупликации
+             "fiftyone", "scikit-learn", "timm", "fairscale", "gallery-dl" # Добавим fiftyone и sklearn для дедупликации
             ], check=True)
     run_cmd([pip_executable, "install" ,"https://huggingface.co/spaces/cocktailpeanut/gradio_logsview/resolve/main/gradio_logsview-0.0.17-py3-none-any.whl"])
     print("[+] Core dependencies installed.")
@@ -312,9 +327,12 @@ def parse_arguments():
     parser.add_argument("--base_dir", type=str, default=".", help="Base directory to create venv and clone kohya_ss.")
     parser.add_argument("--venv_name", type=str, default="lora_env", help="Name for the virtual environment directory.")
     parser.add_argument("--kohya_dir_name", type=str, default="kohya_ss", help="Name for the kohya_ss scripts directory.")
+    parser.add_argument("--reinstall_venv", action="store_true", help="Delete and recreate the virtual environment before setup.")
     return parser.parse_args()
 
 # --- Точка входа ---
 if __name__ == "__main__":
     args = parse_arguments()
+    if getattr(args, "reinstall_venv", False):
+        reinstall_venv(args.base_dir, args.venv_name)
     setup_venv_and_install(args.base_dir, args.venv_name, args.kohya_dir_name)
