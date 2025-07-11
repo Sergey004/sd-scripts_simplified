@@ -177,7 +177,7 @@ def parse_arguments():
     parser.add_argument("--scrape-limit", type=int, default=1000, help="Max images to attempt to fetch.")
     parser.add_argument("--scrape-max-res", type=int, default=3072, help="Max resolution (Gelbooru only, larger images replaced by samples).")
     parser.add_argument("--scrape-include-parents", action=argparse.BooleanOptionalAction, default=True, help="Include posts with parents (Gelbooru only).")
-    parser.add_argument("--source", type=str, choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "custom"], default="gelbooru", help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, custom.")
+    parser.add_argument("--source", type=str, choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "custom", "all"], default="gelbooru", help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, custom, or all (all = search character on all sites).")
     parser.add_argument("--user", type=str, required=False, help="Username/author for gallery download (universal for all supported gallery-dl sites).")
     parser.add_argument("--cookies", type=str, required=False, help="Path to cookies.txt for gallery-dl (if site requires authentication).")
     return parser.parse_args()
@@ -212,6 +212,31 @@ if __name__ == "__main__":
             args.scrape_include_parents,
             args.scrape_limit
         )
+    elif args.source == "all":
+        # Поиск персонажа по всем поддерживаемым сайтам (кроме авторов)
+        for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv"]:
+            print(f"\n[=] Scraping from {site}...")
+            if site == "gelbooru":
+                scrape_images_gelbooru(
+                    args.scrape_tags,
+                    images_folder,
+                    config_folder,
+                    args.project_name,
+                    args.scrape_max_res,
+                    args.scrape_include_parents,
+                    args.scrape_limit
+                )
+            else:
+                scrape_images_supported_site(
+                    site,
+                    args.scrape_tags if args.scrape_tags else None,
+                    images_folder,
+                    config_folder,
+                    args.project_name,
+                    args.scrape_limit,
+                    user=None,
+                    cookies_file=args.cookies if args.cookies else None
+                )
     elif args.source in ["furaffinity", "deviantart", "artstation", "pixiv", "custom"]:
         scrape_images_supported_site(
             args.source,
