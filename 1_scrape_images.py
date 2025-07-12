@@ -25,15 +25,6 @@ from bs4 import BeautifulSoup
 
 # --- Функция скачивания с Gelbooru ---
 
-def scrape_images_gelbooru(tags, images_folder, config_folder, project_name, max_resolution=3072, include_parents=True, limit=1000):
-    """Скачивает изображения с Gelbooru через gallery-dl по тегам."""
-    print("\n--- Image Scraping (Gelbooru, gallery-dl) ---")
-    if not tags:
-        print("[!] No tags provided (--scrape-tags). Skipping.")
-        return
-    tags_str = tags.replace(" ", "+")
-    url = f"https://gelbooru.com/index.php?page=post&s=list&tags={tags_str}"
-    scrape_images_gallery_dl(url, images_folder, limit=limit)
 
 
 # --- Функция скачивания с FurAffinity ---
@@ -107,6 +98,34 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
 
 # --- Функция-обёртка для поддержки разных сайтов ---
 def scrape_images_supported_site(site, tags, images_folder, config_folder, project_name, limit=1000, user=None, cookies_file=None):
+    # Gelbooru: только теги
+    if site == "gelbooru":
+        if tags:
+            tags_str = tags.replace(" ", "+")
+            url = f"https://gelbooru.com/index.php?page=post&s=list&tags={tags_str}"
+            print(f"[*] Gelbooru: tag search: {tags}")
+            extractor_opts = None
+        else:
+            print("[!] No tags specified for gelbooru.")
+            return
+    # Instagram: поддержка профилей, тегов, постов и др.
+    if site == "instagram":
+        # Возможности: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles
+        # Примеры ссылок: https://www.instagram.com/{user}/, https://www.instagram.com/explore/tags/{tag}/
+        if user:
+            url = f"https://www.instagram.com/{user}/"
+            print(f"[*] Instagram: user profile: {user}")
+            print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
+            extractor_opts = None
+        elif tags:
+            tag = tags.split()[0]
+            url = f"https://www.instagram.com/explore/tags/{tag}/"
+            print(f"[*] Instagram: tag search: {tag}")
+            print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
+            extractor_opts = None
+        else:
+            print("[!] Instagram requires --user or --scrape-tags argument.")
+            return
     # e621: tags only
     if site == "e621":
         if tags:
@@ -187,7 +206,13 @@ def parse_arguments():
     parser.add_argument("--scrape-limit", type=int, default=1000, help="Max images to attempt to fetch.")
     parser.add_argument("--scrape-max-res", type=int, default=3072, help="Max resolution (Gelbooru only, larger images replaced by samples).")
     parser.add_argument("--scrape-include-parents", action=argparse.BooleanOptionalAction, default=True, help="Include posts with parents (Gelbooru only).")
-    parser.add_argument("--source", type=str, choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "custom", "all"], default="gelbooru", help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, custom, or all (all = search character on all sites).")
+    parser.add_argument(
+        "--source",
+        type=str,
+        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "custom", "all"],
+        default="gelbooru",
+        help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, custom, or all (all = search character on all sites). For Instagram, you can use --user for profile or --scrape-tags for tag search. Supported: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles."
+    )
     parser.add_argument("--user", type=str, required=False, help="Username/author for gallery download (universal for all supported gallery-dl sites).")
     parser.add_argument("--cookies", type=str, required=False, help="Path to cookies.txt for gallery-dl (if site requires authentication).")
     parser.add_argument("--type", type=str, choices=["character", "author"], default="character", help="Type of search: 'character' (by tags) or 'author' (by user/username).")
@@ -215,41 +240,31 @@ if __name__ == "__main__":
 
     if args.type == "character":
         if args.source == "gelbooru":
-            scrape_images_gelbooru(
-                args.scrape_tags,
+            scrape_images_supported_site(
+                "gelbooru",
+                args.scrape_tags if args.scrape_tags else None,
                 images_folder,
                 config_folder,
                 args.project_name,
-                args.scrape_max_res,
-                args.scrape_include_parents,
-                args.scrape_limit
+                args.scrape_limit,
+                user=None,
+                cookies_file=args.cookies if args.cookies else None
             )
         elif args.source == "all":
             # Поиск персонажа по всем поддерживаемым сайтам (кроме авторов)
-            for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621"]:
+            for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram"]:
                 print(f"\n[=] Scraping from {site}...")
-                if site == "gelbooru":
-                    scrape_images_gelbooru(
-                        args.scrape_tags,
-                        images_folder,
-                        config_folder,
-                        args.project_name,
-                        args.scrape_max_res,
-                        args.scrape_include_parents,
-                        args.scrape_limit
-                    )
-                else:
-                    scrape_images_supported_site(
-                        site,
-                        args.scrape_tags if args.scrape_tags else None,
-                        images_folder,
-                        config_folder,
-                        args.project_name,
-                        args.scrape_limit,
-                        user=None,
-                        cookies_file=args.cookies if args.cookies else None
-                    )
-        elif args.source in ["furaffinity", "deviantart", "artstation", "pixiv", "custom", "e621"]:
+                scrape_images_supported_site(
+                    site,
+                    args.scrape_tags if args.scrape_tags else None,
+                    images_folder,
+                    config_folder,
+                    args.project_name,
+                    args.scrape_limit,
+                    user=None,
+                    cookies_file=args.cookies if args.cookies else None
+                )
+        elif args.source in ["furaffinity", "deviantart", "artstation", "pixiv", "custom", "e621", "instagram"]:
             scrape_images_supported_site(
                 args.source,
                 args.scrape_tags if args.scrape_tags else None,
