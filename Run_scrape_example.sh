@@ -14,10 +14,11 @@ python master_train.py \
     --base_model "https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0/resolve/main/Illustrious-XL-v0.1.safetensors" \
     --base_vae "stabilityai/sdxl-vae" \
     --source "furaffinity" \
-    --user "or charactor" \
+    --user "username" \
+    --scrape_tags "character" \
     --scrape_limit 250 \
     --cookies "www.furaffinity.net_cookies.txt" 
-
+# remove user for scrape character
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo "Image scraping finished successfully."

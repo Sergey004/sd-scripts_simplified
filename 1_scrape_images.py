@@ -98,6 +98,24 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
 
 # --- Функция-обёртка для поддержки разных сайтов ---
 def scrape_images_supported_site(site, tags, images_folder, config_folder, project_name, limit=1000, user=None, cookies_file=None):
+    # Pinterest: поддержка профилей, поиска по тегам и коллекций
+    if site == "pinterest":
+        # Возможности: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles
+        # Примеры ссылок: https://www.pinterest.com/{user}/, https://www.pinterest.com/search/pins/?q={tag}
+        if user:
+            url = f"https://www.pinterest.com/{user}/"
+            print(f"[*] Pinterest: user profile: {user}")
+            print("[i] Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles.")
+            extractor_opts = None
+        elif tags:
+            tag = tags.split()[0]
+            url = f"https://www.pinterest.com/search/pins/?q={tag}"
+            print(f"[*] Pinterest: tag search: {tag}")
+            print("[i] Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles.")
+            extractor_opts = None
+        else:
+            print("[!] Pinterest requires --user or --scrape-tags argument.")
+            return
     # Gelbooru: только теги
     if site == "gelbooru":
         if tags:
@@ -209,9 +227,9 @@ def parse_arguments():
     parser.add_argument(
         "--source",
         type=str,
-        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "custom", "all"],
+        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "custom", "all"],
         default="gelbooru",
-        help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, custom, or all (all = search character on all sites). For Instagram, you can use --user for profile or --scrape-tags for tag search. Supported: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles."
+        help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, pinterest, custom, or all (all = search character on all sites). For Instagram/Pinterest, you can use --user for profile or --scrape-tags for tag search. Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles. Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles."
     )
     parser.add_argument("--user", type=str, required=False, help="Username/author for gallery download (universal for all supported gallery-dl sites).")
     parser.add_argument("--cookies", type=str, required=False, help="Path to cookies.txt for gallery-dl (if site requires authentication).")
@@ -252,7 +270,7 @@ if __name__ == "__main__":
             )
         elif args.source == "all":
             # Поиск персонажа по всем поддерживаемым сайтам (кроме авторов)
-            for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram"]:
+            for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest"]:
                 print(f"\n[=] Scraping from {site}...")
                 scrape_images_supported_site(
                     site,
@@ -264,7 +282,7 @@ if __name__ == "__main__":
                     user=None,
                     cookies_file=args.cookies if args.cookies else None
                 )
-        elif args.source in ["furaffinity", "deviantart", "artstation", "pixiv", "custom", "e621", "instagram"]:
+        elif args.source in ["furaffinity", "deviantart", "artstation", "pixiv", "custom", "e621", "instagram", "pinterest"]:
             scrape_images_supported_site(
                 args.source,
                 args.scrape_tags if args.scrape_tags else None,
