@@ -76,9 +76,16 @@ def parse_master_arguments():
     g_scrape.add_argument("--scrape_limit", type=int, default=1000, help="Max images to fetch.")
     g_scrape.add_argument("--scrape_max_res", type=int, default=3072, help="Max image resolution for scraping (Gelbooru legacy only, not used with gallery-dl).")
     g_scrape.add_argument("--scrape_include_parents", action=argparse.BooleanOptionalAction, default=True, help="Include Gelbooru posts with parents (legacy only, not used with gallery-dl).")
-    g_scrape.add_argument("--source", type=str, choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "custom"], default="gelbooru", help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, custom.")
+    g_scrape.add_argument(
+        "--source",
+        type=str,
+        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "custom", "all"],
+        default="gelbooru",
+        help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, pinterest, custom, or all (all = search character on all sites). For Instagram/Pinterest, you can use --user for profile or --scrape_tags for tag search."
+    )
     g_scrape.add_argument("--user", type=str, required=False, help="User/author name for gallery download (universal for all supported gallery-dl sites).")
     g_scrape.add_argument("--cookies", type=str, required=False, help="Path to cookies.txt for gallery-dl (if site requires authentication).")
+    g_scrape.add_argument("--type", type=str, choices=["character", "author"], default="character", help="Type of search: 'character' (by tags) or 'author' (by user/username).")
     g_dedupe = parser.add_argument_group('Step 2: Detect Duplicates Args')
     g_dedupe.add_argument("--dedup_threshold", type=float, default=0.985, help="Similarity threshold for duplicates.")
     g_tag = parser.add_argument_group('Step 3: Tag Images Args')
@@ -286,7 +293,7 @@ def main():
         "0_setup_environment.py": ['base_dir', 'venv_name', 'kohya_dir_name'],
         "1_scrape_images.py": [
             'project_name', 'base_dir', 'scrape_tags', 'scrape_limit', 'scrape_max_res', 'scrape_include_parents',
-            'source', 'user', 'cookies'
+            'source', 'user', 'cookies', 'type'
         ],
         "2_detect_duplicates.py": ['project_name', 'base_dir', 'dedup_threshold'],
         "3_tag_images.py": ['project_name', 'base_dir', 'kohya_dir_name', 'venv_name', 'tagging_method', 'tagger_threshold', 'tagger_batch_size', 'blip_min_length', 'blip_max_length', 'caption_extension', 'tagger_blacklist', 'overwrite_tags'],
