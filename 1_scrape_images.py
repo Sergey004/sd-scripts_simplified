@@ -41,9 +41,9 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
         url,
         "-d", images_folder,
         "-v",              # Enable verbose logging
-        "-r", "",          # No delay between requests
+        "-r", "", "--sleep-429" ,"25",       # No delay between requests
         "-o", "proxy-env=false", # Disable proxy from env
-        "--config-ignore"  # Ignore config for max speed (user request)
+        "--config config,conf"
     ]
     # gallery-dl does not support a universal --limit argument for all sites.
     # Try to use --range 1-N for all sites if limit is set and > 0
@@ -95,6 +95,26 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
         if not os.listdir(root):
             os.rmdir(root)
     print(f"[+] All images moved to: {images_folder}")
+
+    # Удаляем не-изображения (GIF, текстовые, офисные документы)
+    remove_exts = [
+        ".gif", ".txt", ".md", ".rtf", ".doc", ".docx", ".odt", ".ods", ".odp", ".pdf"
+    ]
+    removed = 0
+    for file in os.listdir(images_folder):
+        file_path = os.path.join(images_folder, file)
+        if not os.path.isfile(file_path):
+            continue
+        ext = os.path.splitext(file)[1].lower()
+        if ext in remove_exts:
+            try:
+                os.remove(file_path)
+                removed += 1
+                print(f"[x] Removed non-image file: {file}")
+            except Exception as e:
+                print(f"[!] Failed to remove {file}: {e}")
+    if removed:
+        print(f"[i] Removed {removed} non-image files from {images_folder}")
 
 # --- Функция-обёртка для поддержки разных сайтов ---
 def scrape_images_supported_site(site, tags, images_folder, config_folder, project_name, limit=1000, user=None, cookies_file=None):
@@ -270,15 +290,17 @@ if __name__ == "__main__":
             )
         elif args.source == "all":
             # Поиск персонажа по всем поддерживаемым сайтам (кроме авторов)
-            for site in ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest"]:
-                print(f"\n[=] Scraping from {site}...")
+            all_sites = ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest"]
+            per_site_limit = max(1, args.scrape_limit // len(all_sites)) if args.scrape_limit else 1000
+            for site in all_sites:
+                print(f"\n[=] Scraping from {site} (limit {per_site_limit})...")
                 scrape_images_supported_site(
                     site,
                     args.scrape_tags if args.scrape_tags else None,
                     images_folder,
                     config_folder,
                     args.project_name,
-                    args.scrape_limit,
+                    per_site_limit,
                     user=None,
                     cookies_file=args.cookies if args.cookies else None
                 )
