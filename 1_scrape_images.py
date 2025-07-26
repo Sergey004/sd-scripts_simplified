@@ -41,9 +41,9 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
         url,
         "-d", images_folder,
         "-v",              # Enable verbose logging
-        "-r", "", "--sleep-429" ,"25",       # No delay between requests
+        "-r", "",      # No delay between requests
         "-o", "proxy-env=false", # Disable proxy from env
-        "--config config,conf"
+        "-c", "gallery-dl.conf"
     ]
     # gallery-dl does not support a universal --limit argument for all sites.
     # Try to use --range 1-N for all sites if limit is set and > 0
@@ -136,8 +136,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Pinterest requires --user or --scrape-tags argument.")
             return
-    # Gelbooru: только теги
-    if site == "gelbooru":
+    elif site == "gelbooru":
         if tags:
             tags_str = tags.replace(" ", "+")
             url = f"https://gelbooru.com/index.php?page=post&s=list&tags={tags_str}"
@@ -146,8 +145,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] No tags specified for gelbooru.")
             return
-    # Instagram: поддержка профилей, тегов, постов и др.
-    if site == "instagram":
+    elif site == "instagram":
         # Возможности: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles
         # Примеры ссылок: https://www.instagram.com/{user}/, https://www.instagram.com/explore/tags/{tag}/
         if user:
@@ -164,8 +162,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Instagram requires --user or --scrape-tags argument.")
             return
-    # e621: tags only
-    if site == "e621":
+    elif site == "e621":
         if tags:
             tags_str = "+".join(tags.split())
             url = f"https://e621.net/posts?tags={tags_str}"
@@ -174,9 +171,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] No tags specified for e621.")
             return
-    """Скачивание с любого поддерживаемого gallery-dl сайта по ссылке, тегам или пользователю. Поддержка cookies.txt."""
-    # FurAffinity: user -> gallery, tags -> search
-    if site == "furaffinity":
+    elif site == "furaffinity":
         if user:
             url = f"https://www.furaffinity.net/gallery/{user}/"
             print(f"[*] Using user gallery: {user}")
@@ -189,7 +184,6 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Neither tags nor user specified.")
             return
-    # DeviantArt: user -> gallery, tags -> search
     elif site == "deviantart":
         if user:
             url = f"https://www.deviantart.com/{user}/gallery/all"
@@ -203,7 +197,6 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Neither tags nor user specified.")
             return
-    # ArtStation: user only
     elif site == "artstation":
         if user:
             url = f"https://www.artstation.com/{user}/projects"
@@ -212,7 +205,6 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] ArtStation requires --user argument.")
             return
-    # Pixiv: user -> artworks, tags -> search
     elif site == "pixiv":
         if user:
             url = f"https://www.pixiv.net/en/users/{user}/artworks"
@@ -226,7 +218,6 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Neither tags nor user specified.")
             return
-    # Generic: if url is passed directly
     elif site == "custom":
         url = tags
         extractor_opts = None

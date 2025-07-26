@@ -235,7 +235,6 @@ def setup_venv_and_install(base_dir, venv_name, kohya_dir_name):
              "wandb", "scipy", "requests", # requests нужен для скачивания в основном скрипте
              "fiftyone", "scikit-learn", "timm", "fairscale", "gallery-dl" # Добавим fiftyone и sklearn для дедупликации
             ], check=True)
-    run_cmd("wget", "https://gdl-org.github.io/docs/gallery-dl-example.conf")
     run_cmd([pip_executable, "install" ,"https://huggingface.co/spaces/cocktailpeanut/gradio_logsview/resolve/main/gradio_logsview-0.0.17-py3-none-any.whl"])
     print("[+] Core dependencies installed.")
 
