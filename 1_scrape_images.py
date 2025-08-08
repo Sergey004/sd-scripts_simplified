@@ -128,8 +128,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             print("[i] Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles.")
             extractor_opts = None
         elif tags:
-            tag = tags.split()[0]
-            url = f"https://www.pinterest.com/search/pins/?q={tag}"
+            tag = tags.replace(" ", "%20")
+            url = f"https://www.pinterest.com/search/pins/?q=%22{tag}%22"
             print(f"[*] Pinterest: tag search: {tag}")
             print("[i] Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles.")
             extractor_opts = None
@@ -138,7 +138,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             return
     elif site == "gelbooru":
         if tags:
-            tags_str = tags.replace(" ", "+")
+            tags_str = tags.lower().replace(" ", "_")
             url = f"https://gelbooru.com/index.php?page=post&s=list&tags={tags_str}"
             print(f"[*] Gelbooru: tag search: {tags}")
             extractor_opts = None
@@ -154,7 +154,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
             extractor_opts = None
         elif tags:
-            tag = tags.split()[0]
+            tag = tags.replace(" ", "")
             url = f"https://www.instagram.com/explore/tags/{tag}/"
             print(f"[*] Instagram: tag search: {tag}")
             print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
@@ -164,7 +164,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             return
     elif site == "e621":
         if tags:
-            tags_str = "+".join(tags.split())
+            tags_str = tags.lower().replace(" ", "_")
             url = f"https://e621.net/posts?tags={tags_str}"
             print(f"[*] e621: tag search: {tags}")
             extractor_opts = None
@@ -177,8 +177,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             print(f"[*] Using user gallery: {user}")
             extractor_opts = {"furaffinity": {"all": True}}
         elif tags:
-            tags_str = "+".join(tags.split())
-            url = f"https://www.furaffinity.net/search/?q={tags_str}"
+            tags_str = tags.replace(" ", "%20")
+            url = f"https://www.furaffinity.net/search/?q=%22{tags_str}%22"
             print(f"[*] Using tag search: {tags}")
             extractor_opts = {"furaffinity": {"all": True}}
         else:
@@ -190,8 +190,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             print(f"[*] DeviantArt: user gallery: {user}")
             extractor_opts = None
         elif tags:
-            tags_str = "+".join(tags.split())
-            url = f"https://www.deviantart.com/tag/{tags_str}"
+            tags_str = tags.replace(" ", "%20")
+            url = f"https://www.deviantart.com/search/deviations?q=\"{tags_str}\""
             print(f"[*] DeviantArt: tag search: {tags}")
             extractor_opts = None
         else:
@@ -202,8 +202,13 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             url = f"https://www.artstation.com/{user}/projects"
             print(f"[*] ArtStation: user projects: {user}")
             extractor_opts = None
+        elif tags:
+            tags_str = tags.replace(" ", "+")
+            url = f"https://www.artstation.com/search?keywords={tags_str}"
+            print(f"[*] ArtStation: keyword search: {tags}")
+            extractor_opts = None
         else:
-            print("[!] ArtStation requires --user argument.")
+            print("[!] ArtStation requires --user or --scrape-tags argument.")
             return
     elif site == "pixiv":
         if user:

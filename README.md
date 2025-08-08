@@ -65,6 +65,52 @@ The primary way to run the pipeline is via `master_train.py`.
 python master_train.py --project_name <your_project_name> --base_model <path_or_URL> [stage_options] [stage_parameters...]
 ```
 
+
+#### Step 1: Scraping images from any supported site
+
+The script `1_scrape_images.py` now supports universal multi-site scraping via gallery-dl.
+
+**Examples:**
+
+Download images by tag from a single site:
+```bash
+python 1_scrape_images.py --project-name MyCoolLora --scrape-tags "MyCoolLora" --source gelbooru --scrape-limit 200
+```
+
+Download by author from deviantart:
+```bash
+python 1_scrape_images.py --project-name MyCoolLora --user "authorname" --source deviantart --type author --scrape-limit 100
+```
+
+Multi-site scraping by tag from all supported sites:
+```bash
+python 1_scrape_images.py --project-name MyCoolLora --scrape-tags "MyCoolLora" --source all --scrape-limit 400
+```
+*In this case, the limit will be automatically split between sites.*
+
+Download from Pinterest or Instagram (by tag or profile):
+```bash
+python 1_scrape_images.py --project-name MyCoolLora --scrape-tags "MyCoolLora" --source pinterest --scrape-limit 50
+python 1_scrape_images.py --project-name MyCoolLora --user "someuser" --source instagram --scrape-limit 50
+```
+
+**Supported values for --source:**
+gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, pinterest, custom, all
+
+**Quick argument reference:**
+
+* `--scrape-tags` — tags for search (character mode)
+* `--user` — username/author (author mode)
+* `--source` — site or "all"
+* `--type` — character (by tags) or author (by user)
+* `--scrape-limit` — image limit (split between sites if "all")
+* `--cookies` — path to cookies.txt (if needed)
+
+**Result:**
+All images will be placed in `<base_dir>/<project_name>/dataset/` with no subfolders, and non-image files will be automatically removed.
+
+---
+
 ### 2. Simple Gradio Web UI (recommended for most users) **WIP**
 
 A user-friendly web interface is available via Gradio. This allows you to set all parameters and launch training from your browser, without editing scripts or running long commands.
