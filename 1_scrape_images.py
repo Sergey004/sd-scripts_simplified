@@ -138,7 +138,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             return
     elif site == "gelbooru":
         if tags:
-            tags_str = tags.lower().replace(" ", "_")
+            tags_list = [t.strip().lower().replace(" ", "_") for t in tags.split(",")]
+            tags_str = "+".join(tags_list)
             url = f"https://gelbooru.com/index.php?page=post&s=list&tags={tags_str}"
             print(f"[*] Gelbooru: tag search: {tags}")
             extractor_opts = None
@@ -164,7 +165,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             return
     elif site == "e621":
         if tags:
-            tags_str = tags.lower().replace(" ", "_")
+            tags_list = [t.strip().lower().replace(" ", "_") for t in tags.split(",")]
+            tags_str = "+".join(tags_list)
             url = f"https://e621.net/posts?tags={tags_str}"
             print(f"[*] e621: tag search: {tags}")
             extractor_opts = None
@@ -223,6 +225,41 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
         else:
             print("[!] Neither tags nor user specified.")
             return
+    elif site == "inkbunny":
+        if user:
+            url = f"https://inkbunny.net/{user}"
+            print(f"[*] Inkbunny: user profile: {user}")
+            extractor_opts = None
+        elif tags:
+            tags_str = tags.replace(" ", "+")
+            url = f"https://inkbunny.net/search_process.php?keyword={tags_str}"
+            print(f"[*] Inkbunny: tag search: {tags}")
+            extractor_opts = None
+        else:
+            print("[!] Inkbunny requires --user or --scrape-tags.")
+            return
+    elif site == "agnph":
+        if tags:
+            tags_str = tags.replace(" ", "+")
+            url = f"https://agn.ph/gallery?tag={tags_str}"
+            print(f"[*] AGNPH: tag search: {tags}")
+            extractor_opts = None
+        else:
+            print("[!] AGNPH requires --scrape-tags.")
+            return
+    elif site == "aryion":
+        if user:
+            url = f"https://aryion.com/g4/user/{user}"
+            print(f"[*] Eka's Portal: user gallery: {user}")
+            extractor_opts = None
+        elif tags:
+            tags_str = tags.replace(" ", "+")
+            url = f"https://aryion.com/g4/tags.php?tag={tags_str}"
+            print(f"[*] Eka's Portal: tag search: {tags}")
+            extractor_opts = None
+        else:
+            print("[!] Eka's Portal requires --user or --scrape-tags.")
+            return
     elif site == "custom":
         url = tags
         extractor_opts = None
@@ -243,7 +280,7 @@ def parse_arguments():
     parser.add_argument(
         "--source",
         type=str,
-        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "custom", "all"],
+        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "inkbunny", "agnph", "aryion", "custom", "all"],
         default="gelbooru",
         help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, pinterest, custom, or all (all = search character on all sites). For Instagram/Pinterest, you can use --user for profile or --scrape-tags for tag search. Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles. Pinterest supports: All Pins, Created Pins, Pins, pin.it Links, related Pins, Search Results, Sections, User Profiles."
     )
@@ -286,7 +323,7 @@ if __name__ == "__main__":
             )
         elif args.source == "all":
             # Поиск персонажа по всем поддерживаемым сайтам (кроме авторов)
-            all_sites = ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest"]
+            all_sites = ["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "inkbunny", "agnph", "aryion"]
             per_site_limit = max(1, args.scrape_limit // len(all_sites)) if args.scrape_limit else 1000
             for site in all_sites:
                 print(f"\n[=] Scraping from {site} (limit {per_site_limit})...")
