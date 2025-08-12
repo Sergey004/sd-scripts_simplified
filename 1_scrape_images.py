@@ -232,7 +232,7 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             extractor_opts = None
         elif tags:
             tags_str = tags.replace(" ", "+")
-            url = f"https://inkbunny.net/search_process.php?keyword={tags_str}"
+            url = f"https://inkbunny.net/submissionsviewall.php?mode=search&page=1&orderby=create_datetime&text={tags_str}&stringtype=and&keywords=yes&title=yes&description=no&artist=&favsby=&type=&days=&keyword_id=&user_id=&random=&md5="
             print(f"[*] Inkbunny: tag search: {tags}")
             extractor_opts = None
         else:
@@ -240,8 +240,8 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             return
     elif site == "agnph":
         if tags:
-            tags_str = tags.replace(" ", "+")
-            url = f"https://agn.ph/gallery?tag={tags_str}"
+            tags_str = tags.replace(" ", "_")
+            url = f"https://agn.ph/gallery/post/?search={tags_str}"
             print(f"[*] AGNPH: tag search: {tags}")
             extractor_opts = None
         else:
