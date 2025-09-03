@@ -98,7 +98,7 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
 
     # Удаляем не-изображения (GIF, текстовые, офисные документы)
     remove_exts = [
-        ".gif", ".txt", ".md", ".rtf", ".doc", ".docx", ".odt", ".ods", ".odp", ".pdf"
+        ".gif", ".txt", ".md", ".rtf", ".doc", ".docx", ".odt", ".ods", ".odp", ".pdf",".webm", ".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv"
     ]
     removed = 0
     for file in os.listdir(images_folder):
