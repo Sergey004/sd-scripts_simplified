@@ -79,7 +79,7 @@ def parse_master_arguments():
     g_scrape.add_argument(
         "--source",
         type=str,
-        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "custom", "all"],
+        choices=["gelbooru", "furaffinity", "deviantart", "artstation", "pixiv", "e621", "instagram", "pinterest", "inkbunny", "agnph", "aryion", "custom", "all"],
         default="gelbooru",
         help="Image source: gelbooru, furaffinity, deviantart, artstation, pixiv, e621, instagram, pinterest, custom, or all (all = search character on all sites). For Instagram/Pinterest, you can use --user for profile or --scrape_tags for tag search."
     )
