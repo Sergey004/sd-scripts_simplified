@@ -23,12 +23,6 @@ except ImportError:
 
 from bs4 import BeautifulSoup
 
-# --- Функция скачивания с Gelbooru ---
-
-
-
-# --- Функция скачивания с FurAffinity ---
-
 # --- Универсальная функция скачивания через gallery-dl ---
 def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None, cookies_file=None):
     """Скачивает изображения с любого поддерживаемого сайта через gallery-dl по ссылке. Поддержка cookies.txt."""
@@ -98,7 +92,7 @@ def scrape_images_gallery_dl(url, images_folder, limit=1000, extractor_opts=None
 
     # Удаляем не-изображения (GIF, текстовые, офисные документы)
     remove_exts = [
-        ".gif", ".txt", ".md", ".rtf", ".doc", ".docx", ".odt", ".ods", ".odp", ".pdf",".webm", ".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv"
+        ".gif", ".txt", ".md", ".rtf", ".swf" ".doc", ".docx", ".odt", ".ods", ".odp", ".pdf",".webm", ".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv"
     ]
     removed = 0
     for file in os.listdir(images_folder):
@@ -147,21 +141,21 @@ def scrape_images_supported_site(site, tags, images_folder, config_folder, proje
             print("[!] No tags specified for gelbooru.")
             return
     elif site == "instagram":
-        # Возможности: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles
-        # Примеры ссылок: https://www.instagram.com/{user}/, https://www.instagram.com/explore/tags/{tag}/
-        if user:
-            url = f"https://www.instagram.com/{user}/"
-            print(f"[*] Instagram: user profile: {user}")
-            print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
-            extractor_opts = None
-        elif tags:
-            tag = tags.replace(" ", "")
-            url = f"https://www.instagram.com/explore/tags/{tag}/"
-            print(f"[*] Instagram: tag search: {tag}")
-            print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
-            extractor_opts = None
-        else:
-            print("[!] Instagram requires --user or --scrape-tags argument.")
+        # # Возможности: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles
+        # # Примеры ссылок: https://www.instagram.com/{user}/, https://www.instagram.com/explore/tags/{tag}/
+        # if user:
+        #     url = f"https://www.instagram.com/{user}/"
+        #     print(f"[*] Instagram: user profile: {user}")
+        #     print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
+        #     extractor_opts = None
+        # elif tags:
+        #     tag = tags.replace(" ", "")
+        #     url = f"https://www.instagram.com/explore/tags/{tag}/"
+        #     print(f"[*] Instagram: tag search: {tag}")
+        #     print("[i] Instagram supports: Avatars, Collections, Followers, Followed Users, Guides, Highlights, User Profile Information, Posts, Reels, Saved Posts, Stories, Tag Searches, Tagged Posts, User Profiles.")
+        #     extractor_opts = None
+        # else:
+        #     print("[!] Instagram requires --user or --scrape-tags argument.")
             return
     elif site == "e621":
         if tags:
